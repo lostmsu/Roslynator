@@ -2,7 +2,7 @@
 
 using System.Collections.Generic;
 using CommandLine;
-using Roslynator.CSharp;
+using Roslynator.Documentation;
 
 namespace Roslynator.CommandLine
 {

@@ -7,8 +7,9 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Roslynator.CSharp;
 
-namespace Roslynator.CSharp
+namespace Roslynator.Documentation
 {
     internal static class SymbolDefinitionDisplay
     {

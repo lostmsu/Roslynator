@@ -78,8 +78,6 @@ namespace Roslynator
 
         public static ImmutableArray<EnumFieldSymbolInfo> GetMinimalConstituentFields(ulong value, in EnumSymbolInfo enumInfo)
         {
-            Debug.Assert(value > 0, value.ToString());
-
             if (value == 0)
                 return ImmutableArray<EnumFieldSymbolInfo>.Empty;
 

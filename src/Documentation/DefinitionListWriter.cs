@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
-namespace Roslynator.CSharp
+namespace Roslynator.Documentation
 {
     internal class DefinitionListWriter
     {
@@ -31,9 +31,11 @@ namespace Roslynator.CSharp
 
         public IComparer<ISymbol> Comparer { get; }
 
-        public virtual bool IsVisibleType(ISymbol symbol)
+        public virtual bool IsVisibleType(INamedTypeSymbol typeSymbol)
         {
-            return symbol.IsVisible(Options.Visibility);
+            return !typeSymbol.IsImplicitlyDeclared
+                && typeSymbol.IsVisible(Options.Visibility)
+                && !Options.ShouldBeIgnored(typeSymbol);
         }
 
         public virtual bool IsVisibleMember(ISymbol symbol)
@@ -47,7 +49,7 @@ namespace Roslynator.CSharp
                 case SymbolKind.Field:
                 case SymbolKind.Property:
                     {
-                        return true;
+                        return !symbol.IsImplicitlyDeclared;
                     }
                 case SymbolKind.Method:
                     {
@@ -57,13 +59,30 @@ namespace Roslynator.CSharp
                         {
                             case MethodKind.Constructor:
                                 {
-                                    return methodSymbol.ContainingType.TypeKind != TypeKind.Struct
-                                        || methodSymbol.Parameters.Any();
+                                    switch (methodSymbol.ContainingType.TypeKind)
+                                    {
+                                        case TypeKind.Class:
+                                            {
+                                                if (!methodSymbol.Parameters.Any())
+                                                    return true;
+
+                                                break;
+                                            }
+                                        case TypeKind.Struct:
+                                            {
+                                                if (!methodSymbol.Parameters.Any())
+                                                    return false;
+
+                                                break;
+                                            }
+                                    }
+
+                                    return !symbol.IsImplicitlyDeclared;
                                 }
                             case MethodKind.Conversion:
                             case MethodKind.UserDefinedOperator:
                             case MethodKind.Ordinary:
-                                return true;
+                                return !symbol.IsImplicitlyDeclared;
                             case MethodKind.ExplicitInterfaceImplementation:
                             case MethodKind.StaticConstructor:
                             case MethodKind.Destructor:
@@ -76,19 +95,13 @@ namespace Roslynator.CSharp
                             default:
                                 {
                                     Debug.Fail(methodSymbol.MethodKind.ToString());
-                                    break;
+                                    return false;
                                 }
                         }
-
-                        return true;
-                    }
-                case SymbolKind.NamedType:
-                    {
-                        return false;
                     }
                 default:
                     {
-                        Debug.Fail(symbol.Kind.ToString());
+                        Debug.Assert(symbol.Kind == SymbolKind.NamedType, symbol.Kind.ToString());
                         return false;
                     }
             }
@@ -127,8 +140,7 @@ namespace Roslynator.CSharp
                 WriteLine();
 
             IEnumerable<INamedTypeSymbol> types = assemblies.SelectMany(a => a.GetTypes(t => t.ContainingType == null
-                && t.IsVisible(Options.Visibility)
-                && !Options.ShouldBeIgnored(t)));
+                && IsVisibleType(t)));
 
             if (Options.NestNamespaces)
             {
@@ -251,7 +263,8 @@ namespace Roslynator.CSharp
 
         private void WriteTypes(IEnumerable<INamedTypeSymbol> types)
         {
-            using (IEnumerator<INamedTypeSymbol> en = types.OrderBy(f => f, Comparer).GetEnumerator())
+            using (IEnumerator<INamedTypeSymbol> en = types
+                .OrderBy(f => f, Comparer).GetEnumerator())
             {
                 if (en.MoveNext())
                 {
@@ -351,7 +364,8 @@ namespace Roslynator.CSharp
         {
             if (Options.Depth == DefinitionListDepth.Member)
             {
-                using (IEnumerator<ISymbol> en = namedType.GetMembers().Where(f => IsVisibleMember(f))
+                using (IEnumerator<ISymbol> en = namedType.GetMembers()
+                    .Where(f => IsVisibleMember(f))
                     .OrderBy(f => f, Comparer)
                     .GetEnumerator())
                 {

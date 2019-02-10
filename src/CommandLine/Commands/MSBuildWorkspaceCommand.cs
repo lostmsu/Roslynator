@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -205,6 +206,53 @@ namespace Roslynator.CommandLine
                     WriteLine($"  Skip '{project.Name}'", ConsoleColor.DarkGray, Verbosity.Normal);
                 }
             }
+        }
+
+        private protected async Task<ImmutableArray<Compilation>> GetCompilationsAsync(
+            ProjectOrSolution projectOrSolution,
+            MSBuildCommandLineOptions options,
+            CancellationToken cancellationToken)
+        {
+            ImmutableArray<Compilation>.Builder compilations = ImmutableArray.CreateBuilder<Compilation>();
+
+            if (projectOrSolution.IsProject)
+            {
+                Project project = projectOrSolution.AsProject();
+
+                WriteLine($"Compile '{project.Name}'", Verbosity.Minimal);
+
+                Compilation compilation = await project.GetCompilationAsync(cancellationToken);
+
+                compilations.Add(compilation);
+            }
+            else
+            {
+                Solution solution = projectOrSolution.AsSolution();
+
+                WriteLine($"Compile solution '{solution.FilePath}'", Verbosity.Minimal);
+
+                Stopwatch stopwatch = Stopwatch.StartNew();
+
+                foreach (Project project in FilterProjects(solution, options, s => s
+                    .GetProjectDependencyGraph()
+                    .GetTopologicallySortedProjects(cancellationToken)
+                    .ToImmutableArray()))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    WriteLine($"  Compile '{project.Name}'", Verbosity.Minimal);
+
+                    Compilation compilation = await project.GetCompilationAsync(cancellationToken);
+
+                    compilations.Add(compilation);
+                }
+
+                stopwatch.Stop();
+
+                WriteLine($"Done compiling solution '{solution.FilePath}' in {stopwatch.Elapsed:mm\\:ss\\.ff}", Verbosity.Minimal);
+            }
+
+            return compilations.ToImmutableArray();
         }
 
         protected class ConsoleProgressReporter : IProgress<ProjectLoadProgress>

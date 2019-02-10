@@ -2,18 +2,11 @@
 
 using System.Collections.Generic;
 using CommandLine;
-using Roslynator.Documentation;
 
 namespace Roslynator.CommandLine
 {
-    public abstract class AbstractGenerateDocCommandLineOptions : AbstractCommandLineOptions
+    public abstract class AbstractGenerateDocCommandLineOptions : MSBuildCommandLineOptions
     {
-        [Option(shortName: 'a', longName: "assemblies",
-            Required = true,
-            HelpText = "Defines one or more assemblies that should be used as a source for the documentation.",
-            MetaValue = "<ASSEMBLY>")]
-        public IEnumerable<string> Assemblies { get; set; }
-
         [Option(shortName: 'h', longName: "heading",
             Required = true,
             HelpText = "Defines a heading of the root documentation file.",
@@ -24,13 +17,7 @@ namespace Roslynator.CommandLine
             Required = true,
             HelpText = "Defines a path for the output directory.",
             MetaValue = "<OUTPUT_DIRECTORY>")]
-        public string OutputPath { get; set; }
-
-        [Option(shortName: 'r', longName: "references",
-            Required = true,
-            HelpText = "Defines one or more paths to assembly or a file that contains a list of all assemblies. Each assembly must be on separate line.",
-            MetaValue = "<ASSEMBLY_REFERENCE | ASSEMBLY_REFERENCES_FILE>")]
-        public IEnumerable<string> References { get; set; }
+        public string Output { get; set; }
 
         [Option(longName: ParameterNames.Depth,
             HelpText = "Defines a depth of a documentation. Allowed values are member, type or namespace. Default value is member.",

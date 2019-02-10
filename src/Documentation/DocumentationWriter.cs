@@ -442,16 +442,17 @@ namespace Roslynator.Documentation
 
         public virtual void WriteDeclaration(ISymbol symbol)
         {
-            ImmutableArray<SymbolDisplayPart> parts = SymbolDeclarationBuilder.GetDisplayParts(
+            ImmutableArray<SymbolDisplayPart> parts = SymbolDefinitionDisplay.GetDisplayParts(
                 symbol,
                 SymbolDisplayFormats.FullDeclaration,
                 typeDeclarationOptions: SymbolDisplayTypeDeclarationOptions.IncludeAccessibility | SymbolDisplayTypeDeclarationOptions.IncludeModifiers,
+                containingNamespaceStyle: SymbolDisplayContainingNamespaceStyle.OmittedAsContaining,
                 isVisibleAttribute: f => AttributeDisplay.ShouldBeDisplayed(f),
                 formatBaseList: Options.FormatDeclarationBaseList,
                 formatConstraints: Options.FormatDeclarationConstraints,
                 includeAttributeArguments: Options.IncludeAttributeArguments,
                 omitIEnumerable: Options.OmitIEnumerable,
-                useNameOnlyIfPossible: true);
+                useDefaultLiteral: true);
 
             WriteCodeBlock(parts.ToDisplayString(), symbol.Language);
         }

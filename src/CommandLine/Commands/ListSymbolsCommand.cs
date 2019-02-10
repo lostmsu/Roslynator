@@ -1,14 +1,13 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
-using Roslynator.CSharp;
+using Roslynator.Documentation;
 using static Roslynator.Logger;
 
 namespace Roslynator.CommandLine
@@ -58,44 +57,7 @@ namespace Roslynator.CommandLine
                 omitIEnumerable: !Options.IncludeIEnumerable,
                 assemblyAttributes: Options.AssemblyAttributes);
 
-            var assemblies = new List<IAssemblySymbol>();
-
-            if (projectOrSolution.IsProject)
-            {
-                Project project = projectOrSolution.AsProject();
-
-                WriteLine($"Compile '{project.Name}'", Verbosity.Minimal);
-
-                Compilation compilation = await project.GetCompilationAsync(cancellationToken);
-
-                assemblies.Add(compilation.Assembly);
-            }
-            else
-            {
-                Solution solution = projectOrSolution.AsSolution();
-
-                WriteLine($"Compile solution '{solution.FilePath}'", Verbosity.Minimal);
-
-                Stopwatch stopwatch = Stopwatch.StartNew();
-
-                foreach (Project project in FilterProjects(solution, Options, s => s
-                    .GetProjectDependencyGraph()
-                    .GetTopologicallySortedProjects(cancellationToken)
-                    .ToImmutableArray()))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    WriteLine($"  Compile '{project.Name}'", Verbosity.Minimal);
-
-                    Compilation compilation = await project.GetCompilationAsync(cancellationToken);
-
-                    assemblies.Add(compilation.Assembly);
-                }
-
-                stopwatch.Stop();
-
-                WriteLine($"Done compiling solution '{solution.FilePath}' in {stopwatch.Elapsed:mm\\:ss\\.ff}", Verbosity.Minimal);
-            }
+            ImmutableArray<Compilation> compilations = await GetCompilationsAsync(projectOrSolution, Options, cancellationToken);
 
             string text = null;
 
@@ -106,7 +68,7 @@ namespace Roslynator.CommandLine
                     options: options,
                     comparer: SymbolDefinitionComparer.GetInstance(systemNamespaceFirst: !Options.NoPrecedenceForSystem));
 
-                builder.Write(assemblies);
+                builder.Write(compilations.Select(f => f.Assembly));
 
                 text = builder.ToString();
             }

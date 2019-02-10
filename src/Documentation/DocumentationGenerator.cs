@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -286,7 +287,8 @@ namespace Roslynator.Documentation
                             {
                                 if (typeSymbols.Any(f => !f.IsStatic && f.TypeKind == TypeKind.Class))
                                 {
-                                    INamedTypeSymbol objectType = DocumentationModel.Compilation.ObjectType;
+                                    //TODO: DocumentationModel.Compilation.ObjectType
+                                    INamedTypeSymbol objectType = DocumentationModel.Compilations[0].ObjectType;
 
                                     IEnumerable<INamedTypeSymbol> instanceClasses = typeSymbols.Where(f => !f.IsStatic && f.TypeKind == TypeKind.Class);
 

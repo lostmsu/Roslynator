@@ -27,6 +27,15 @@ namespace Roslynator.Documentation
         {
             string rawXml = File.ReadAllText(filePath);
 
+            rawXml = Unindent(rawXml);
+
+            XDocument document = XDocument.Parse(rawXml, LoadOptions.PreserveWhitespace);
+
+            return new XmlDocumentation(document);
+        }
+
+        public static string Unindent(string rawXml)
+        {
             string s = "";
 
             using (var sr = new StringReader(rawXml))
@@ -63,9 +72,7 @@ namespace Roslynator.Documentation
                     : Regex.Replace(rawXml, "(?<=\n)" + s.Substring(index), "");
             }
 
-            XDocument document = XDocument.Parse(rawXml, LoadOptions.PreserveWhitespace);
-
-            return new XmlDocumentation(document);
+            return rawXml;
         }
 
         public SymbolXmlDocumentation GetXmlDocumentation(ISymbol symbol)
