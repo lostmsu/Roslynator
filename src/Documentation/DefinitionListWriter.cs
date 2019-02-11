@@ -13,7 +13,6 @@ namespace Roslynator.Documentation
     {
         private bool _pendingIndentation;
         private int _indentationLevel;
-        private INamespaceSymbol _currentNamespace;
 
         public DefinitionListWriter(
             TextWriter writer,
@@ -30,6 +29,11 @@ namespace Roslynator.Documentation
         public DefinitionListOptions Options { get; }
 
         public IComparer<ISymbol> Comparer { get; }
+
+        public virtual bool IsVisibleNamespace(INamespaceSymbol namespaceSymbol)
+        {
+            return !Options.ShouldBeIgnored(namespaceSymbol);
+        }
 
         public virtual bool IsVisibleType(INamedTypeSymbol typeSymbol)
         {
@@ -114,75 +118,76 @@ namespace Roslynator.Documentation
 
         public void Write(IEnumerable<IAssemblySymbol> assemblies)
         {
-            foreach (IAssemblySymbol assembly in assemblies
+            using (IEnumerator<IAssemblySymbol> en = assemblies
                 .OrderBy(f => f.Name)
-                .ThenBy(f => f.Identity.Version))
+                .ThenBy(f => f.Identity.Version).GetEnumerator())
             {
-                WriteLine(assembly.Identity.ToString());
-
-                if (Options.AssemblyAttributes)
+                if (en.MoveNext())
                 {
-                    ImmutableArray<SymbolDisplayPart> attributeParts = SymbolDefinitionDisplay.GetAttributesParts(
-                        assembly,
-                        IsVisibleAttribute,
-                        containingNamespaceStyle: Options.ContainingNamespaceStyle,
-                        splitAttributes: Options.SplitAttributes,
-                        includeAttributeArguments: Options.IncludeAttributeArguments);
+                    while (true)
+                    {
+                        WriteAssembly(en.Current);
 
-                    if (attributeParts.Any())
-                        Write(attributeParts);
+                        if (!en.MoveNext())
+                            break;
 
-                    WriteLine();
+                        if (Options.AssemblyAttributes)
+                            WriteLine();
+                    }
                 }
             }
 
-            if (!Options.AssemblyAttributes)
-                WriteLine();
-
-            IEnumerable<INamedTypeSymbol> types = assemblies.SelectMany(a => a.GetTypes(t => t.ContainingType == null
-                && IsVisibleType(t)));
+            IEnumerable<IGrouping<INamespaceSymbol, INamedTypeSymbol>> typesByNamespace = assemblies
+                .SelectMany(a => a.GetTypes(t => t.ContainingType == null && IsVisibleType(t)))
+                .GroupBy(t => t.ContainingNamespace, MetadataNameEqualityComparer<INamespaceSymbol>.Instance)
+                .Where(g => IsVisibleNamespace(g.Key))
+                .OrderBy(g => g.Key, Comparer);
 
             if (Options.NestNamespaces)
             {
-                WriteWithNamespaceHierarchy(types);
+                WriteWithNamespaceHierarchy(typesByNamespace.ToDictionary(f => f.Key, f => f.AsEnumerable()));
             }
             else
             {
-                foreach (IGrouping<INamespaceSymbol, INamedTypeSymbol> grouping in types
-                    .GroupBy(f => f.ContainingNamespace, MetadataNameEqualityComparer<INamespaceSymbol>.Instance)
-                    .OrderBy(f => f.Key, Comparer))
+                foreach (IGrouping<INamespaceSymbol, INamedTypeSymbol> grouping in typesByNamespace)
                 {
                     INamespaceSymbol namespaceSymbol = grouping.Key;
 
-                    if (!namespaceSymbol.IsGlobalNamespace)
-                    {
-                        Write(namespaceSymbol, SymbolDefinitionDisplayFormats.NamespaceDefinition);
-                        BeginTypeContent();
-                    }
-
-                    _currentNamespace = namespaceSymbol;
+                    WriteStartNamespace(namespaceSymbol);
 
                     if (Options.Depth <= DefinitionListDepth.Type)
                         WriteTypes(grouping);
 
-                    _currentNamespace = null;
-
-                    if (!namespaceSymbol.IsGlobalNamespace)
-                    {
-                        EndTypeContent();
-                        WriteLine();
-                    }
+                    WriteEndNamespace(namespaceSymbol);
                 }
             }
         }
 
-        private void WriteWithNamespaceHierarchy(IEnumerable<INamedTypeSymbol> types)
+        private void WriteAssembly(IAssemblySymbol assembly)
+        {
+            WriteLine(assembly.Identity.ToString());
+
+            if (Options.AssemblyAttributes)
+            {
+                ImmutableArray<SymbolDisplayPart> attributeParts = SymbolDefinitionDisplay.GetAttributesParts(
+                    assembly,
+                    IsVisibleAttribute,
+                    containingNamespaceStyle: Options.ContainingNamespaceStyle,
+                    splitAttributes: Options.SplitAttributes,
+                    includeAttributeArguments: Options.IncludeAttributeArguments);
+
+                if (attributeParts.Any())
+                    Write(attributeParts);
+            }
+        }
+
+        private void WriteWithNamespaceHierarchy(Dictionary<INamespaceSymbol, IEnumerable<INamedTypeSymbol>> typesByNamespace)
         {
             var rootNamespaces = new HashSet<INamespaceSymbol>(MetadataNameEqualityComparer<INamespaceSymbol>.Instance);
 
             var nestedNamespaces = new HashSet<INamespaceSymbol>(MetadataNameEqualityComparer<INamespaceSymbol>.Instance);
 
-            foreach (INamespaceSymbol namespaceSymbol in types.Select(f => f.ContainingNamespace))
+            foreach (INamespaceSymbol namespaceSymbol in typesByNamespace.Select(f => f.Key))
             {
                 if (namespaceSymbol.IsGlobalNamespace)
                 {
@@ -209,55 +214,30 @@ namespace Roslynator.Documentation
                 }
             }
 
-            foreach (INamespaceSymbol namespaceSymbol in rootNamespaces
-                .OrderBy(f => f, Comparer))
+            foreach (INamespaceSymbol namespaceSymbol in rootNamespaces.OrderBy(f => f, Comparer))
             {
                 WriteNamespace(namespaceSymbol);
-                WriteLine();
             }
 
-            void WriteNamespace(INamespaceSymbol namespaceSymbol, bool isNested = false, bool startsWithNewLine = false)
+            void WriteNamespace(INamespaceSymbol namespaceSymbol)
             {
-                if (!namespaceSymbol.IsGlobalNamespace)
-                {
-                    if (isNested)
-                    {
-                        if (startsWithNewLine)
-                            WriteLine();
-
-                        Write("// ");
-                        Write(namespaceSymbol, SymbolDefinitionDisplayFormats.TypeNameAndContainingTypesAndNamespaces);
-                        WriteLine();
-                    }
-
-                    Write(namespaceSymbol, SymbolDefinitionDisplayFormats.NamespaceDefinition_NameOnly);
-                    BeginTypeContent();
-                }
-
-                _currentNamespace = namespaceSymbol;
+                WriteStartNamespace(namespaceSymbol);
 
                 if (Options.Depth <= DefinitionListDepth.Type)
-                    WriteTypes(types.Where(f => MetadataNameEqualityComparer<INamespaceSymbol>.Instance.Equals(f.ContainingNamespace, namespaceSymbol)));
+                    WriteTypes(typesByNamespace[namespaceSymbol]);
 
-                startsWithNewLine = false;
-
-                foreach (INamespaceSymbol namespaceSymbol2 in nestedNamespaces
+                foreach (INamespaceSymbol nestedNamespace in nestedNamespaces
                     .Where(f => MetadataNameEqualityComparer<INamespaceSymbol>.Instance.Equals(f.ContainingNamespace, namespaceSymbol))
                     .Distinct(MetadataNameEqualityComparer<INamespaceSymbol>.Instance)
                     .OrderBy(f => f, Comparer)
                     .ToArray())
                 {
-                    nestedNamespaces.Remove(namespaceSymbol2);
+                    nestedNamespaces.Remove(nestedNamespace);
 
-                    WriteNamespace(namespaceSymbol2, isNested: true, startsWithNewLine: startsWithNewLine);
-
-                    startsWithNewLine = true;
+                    WriteNamespace(nestedNamespace);
                 }
 
-                _currentNamespace = null;
-
-                if (!namespaceSymbol.IsGlobalNamespace)
-                    EndTypeContent();
+                WriteEndNamespace(namespaceSymbol);
             }
         }
 
@@ -272,66 +252,32 @@ namespace Roslynator.Documentation
 
                     while (true)
                     {
-                        TypeKind typeKind = en.Current.TypeKind;
+                        INamedTypeSymbol namedType = en.Current;
 
-                        Write(SymbolDefinitionDisplay.GetDisplayParts(
-                            en.Current,
-                            SymbolDefinitionDisplayFormats.FullDefinition_NameOnly,
-                            SymbolDisplayTypeDeclarationOptions.IncludeAccessibility | SymbolDisplayTypeDeclarationOptions.IncludeModifiers,
-                            containingNamespaceStyle: Options.ContainingNamespaceStyle,
-                            isVisibleAttribute: IsVisibleAttribute,
-                            formatBaseList: Options.FormatBaseList,
-                            formatConstraints: Options.FormatConstraints,
-                            formatParameters: Options.FormatParameters,
-                            splitAttributes: Options.SplitAttributes,
-                            includeAttributeArguments: Options.IncludeAttributeArguments,
-                            omitIEnumerable: Options.OmitIEnumerable,
-                            useDefaultLiteral: Options.UseDefaultLiteral));
+                        WriteStartNamedType(namedType);
 
-                        switch (typeKind)
+                        switch (namedType.TypeKind)
                         {
                             case TypeKind.Class:
+                            case TypeKind.Interface:
+                            case TypeKind.Struct:
                                 {
-                                    BeginTypeContent();
-
-                                    WriteMembers(en.Current);
-
-                                    EndTypeContent();
-                                    break;
-                                }
-                            case TypeKind.Delegate:
-                                {
-                                    WriteLine(";");
+                                    WriteMembers(namedType);
                                     break;
                                 }
                             case TypeKind.Enum:
                                 {
-                                    BeginTypeContent();
-
-                                    WriteEnumMembers(en.Current);
-
-                                    EndTypeContent();
+                                    WriteEnumMembers(namedType);
                                     break;
                                 }
-                            case TypeKind.Interface:
+                            default:
                                 {
-                                    BeginTypeContent();
-
-                                    WriteMembers(en.Current);
-
-                                    EndTypeContent();
-                                    break;
-                                }
-                            case TypeKind.Struct:
-                                {
-                                    BeginTypeContent();
-
-                                    WriteMembers(en.Current);
-
-                                    EndTypeContent();
+                                    Debug.Assert(namedType.TypeKind == TypeKind.Delegate, namedType.TypeKind.ToString());
                                     break;
                                 }
                         }
+
+                        WriteEndNamedType(namedType);
 
                         if (en.MoveNext())
                         {
@@ -346,18 +292,62 @@ namespace Roslynator.Documentation
             }
         }
 
-        private void BeginTypeContent()
+        private void WriteStartNamespace(INamespaceSymbol namespaceSymbol)
         {
+            if (namespaceSymbol.IsGlobalNamespace)
+                return;
+
+            WriteLine();
+            Write(namespaceSymbol, SymbolDefinitionDisplayFormats.NamespaceDefinition);
             WriteLine();
 
             _indentationLevel++;
         }
 
-        private void EndTypeContent()
+        private void WriteEndNamespace(INamespaceSymbol namespaceSymbol)
         {
-            Debug.Assert(_indentationLevel > 0, "Cannot decrease indentation level.");
+            if (namespaceSymbol.IsGlobalNamespace)
+                return;
 
-            _indentationLevel--;
+            DecreaseIndentation();
+        }
+
+        private void WriteStartNamedType(INamedTypeSymbol namedType)
+        {
+            Write(SymbolDefinitionDisplay.GetDisplayParts(
+                namedType,
+                SymbolDefinitionDisplayFormats.FullDefinition_NameOnly,
+                SymbolDisplayTypeDeclarationOptions.IncludeAccessibility | SymbolDisplayTypeDeclarationOptions.IncludeModifiers,
+                containingNamespaceStyle: Options.ContainingNamespaceStyle,
+                isVisibleAttribute: IsVisibleAttribute,
+                formatBaseList: Options.FormatBaseList,
+                formatConstraints: Options.FormatConstraints,
+                formatParameters: Options.FormatParameters,
+                splitAttributes: Options.SplitAttributes,
+                includeAttributeArguments: Options.IncludeAttributeArguments,
+                omitIEnumerable: Options.OmitIEnumerable,
+                useDefaultLiteral: Options.UseDefaultLiteral));
+
+            TypeKind typeKind = namedType.TypeKind;
+
+            if (namedType.TypeKind != TypeKind.Delegate)
+            {
+                WriteLine();
+
+                _indentationLevel++;
+            }
+        }
+
+        private void WriteEndNamedType(INamedTypeSymbol namedType)
+        {
+            if (namedType.TypeKind == TypeKind.Delegate)
+            {
+                WriteLine(";");
+            }
+            else
+            {
+                DecreaseIndentation();
+            }
         }
 
         private void WriteMembers(INamedTypeSymbol namedType)
@@ -477,9 +467,7 @@ namespace Roslynator.Documentation
             }
 
             if (Options.Depth <= DefinitionListDepth.Type)
-            {
                 WriteTypes(namedType.GetTypeMembers().Where(f => IsVisibleType(f)));
-            }
         }
 
         private void WriteEnumMembers(INamedTypeSymbol enumType)
@@ -490,7 +478,8 @@ namespace Roslynator.Documentation
             using (IEnumerator<ISymbol> en = enumType
                 .GetMembers()
                 .Where(m => m.Kind == SymbolKind.Field
-                    && m.DeclaredAccessibility == Accessibility.Public).GetEnumerator())
+                    && m.DeclaredAccessibility == Accessibility.Public)
+                .GetEnumerator())
             {
                 if (en.MoveNext())
                 {
@@ -567,6 +556,12 @@ namespace Roslynator.Documentation
         public override string ToString()
         {
             return Writer.ToString();
+        }
+
+        private void DecreaseIndentation()
+        {
+            Debug.Assert(_indentationLevel > 0, "Cannot decrease indentation level.");
+            _indentationLevel--;
         }
     }
 }

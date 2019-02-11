@@ -8,7 +8,7 @@ set _msbuildPath="C:\Program Files\Microsoft Visual Studio\2017\Community\MSBuil
  --msbuild-path %_msbuildPath% ^
  --visibility public ^
  --depth member ^
- --containing-namespace-style omitted-as-containing ^
+ --containing-namespace-style omitted ^
  --verbosity n ^
  --file-log "roslynator.log" ^
  --file-log-verbosity n

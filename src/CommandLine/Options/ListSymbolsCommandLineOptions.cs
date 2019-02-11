@@ -26,7 +26,7 @@ namespace Roslynator.CommandLine
         public string Depth { get; set; }
 
         [Option(longName: "empty-line-between-members",
-            HelpText = "Indicates whether an empty line should be added between two member declarations.")]
+            HelpText = "Indicates whether an empty line should be added between two member definitions.")]
         public bool EmptyLineBetweenMembers { get; set; }
 
         [Option(longName: "format-base-list",
@@ -69,7 +69,7 @@ namespace Roslynator.CommandLine
         public bool NoAttributeArguments { get; set; }
 
         [Option(longName: "no-indent",
-            HelpText = "Indicates whether declarations should not be indented.")]
+            HelpText = "Indicates whether definitions should not be indented.")]
         public bool NoIndent { get; set; }
 
         [Option(longName: "no-precedence-for-system",

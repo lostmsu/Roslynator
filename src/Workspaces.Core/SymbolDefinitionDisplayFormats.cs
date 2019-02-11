@@ -34,9 +34,6 @@ namespace Roslynator
             typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
             kindOptions: SymbolDisplayKindOptions.IncludeNamespaceKeyword);
 
-        public static SymbolDisplayFormat NamespaceDefinition_NameOnly { get; } = NamespaceDefinition.Update(
-            typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly);
-
         public static SymbolDisplayFormat FullDefinition_NameOnly { get; } = Default.Update(
             typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
             genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters

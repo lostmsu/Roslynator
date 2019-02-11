@@ -56,7 +56,7 @@ Defines a depth of a documentation. Default value is `member`.
 
 **`[--empty-line-between-members]`**
 
-Indicates whether an empty line should be added between two member declarations.
+Indicates whether an empty line should be added between two member definitions.
 
 **`[--format-base-list]`**
 
@@ -110,7 +110,7 @@ Indicates whether attribute arguments should be omitted when displaying an attri
 
 **`[--no-indent]`**
 
-Indicates whether declarations should not be indented.
+Indicates whether definitions should not be indented.
 
 **`[--no-precedence-for-system]`**
 

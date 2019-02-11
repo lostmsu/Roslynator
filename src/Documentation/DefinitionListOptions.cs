@@ -88,25 +88,12 @@ namespace Roslynator.Documentation
 
         public bool AssemblyAttributes { get; }
 
-        internal bool ShouldBeIgnored(INamedTypeSymbol typeSymbol)
+        internal bool ShouldBeIgnored(ISymbol symbol)
         {
             foreach (MetadataName metadataName in _ignoredMetadataNames)
             {
-                if (typeSymbol.HasMetadataName(metadataName))
+                if (symbol.HasMetadataName(metadataName))
                     return true;
-
-                if (!metadataName.ContainingTypes.Any())
-                {
-                    INamespaceSymbol n = typeSymbol.ContainingNamespace;
-
-                    while (n != null)
-                    {
-                        if (n.HasMetadataName(metadataName))
-                            return true;
-
-                        n = n.ContainingNamespace;
-                    }
-                }
             }
 
             return false;
