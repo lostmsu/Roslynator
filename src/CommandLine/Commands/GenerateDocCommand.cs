@@ -26,7 +26,7 @@ namespace Roslynator.CommandLine
             MemberDocumentationParts ignoredMemberParts,
             OmitContainingNamespaceParts omitContainingNamespaceParts,
             Visibility visibility,
-            string language) : base(language)
+            in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
             Depth = depth;
@@ -85,7 +85,7 @@ namespace Roslynator.CommandLine
                 omitContainingNamespaceParts: OmitContainingNamespaceParts,
                 scrollToContent: Options.ScrollToContent);
 
-            ImmutableArray<Compilation> compilations = await GetCompilationsAsync(projectOrSolution, Options, cancellationToken);
+            ImmutableArray<Compilation> compilations = await GetCompilationsAsync(projectOrSolution, cancellationToken);
 
             var documentationModel = new DocumentationModel(compilations, Visibility, Options.AdditionalXmlDocumentation);
 

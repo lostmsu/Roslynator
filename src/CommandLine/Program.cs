@@ -124,7 +124,7 @@ namespace Roslynator.CommandLine
             if (!TryParseKeyValuePairs(options.DiagnosticFixerMap, out Dictionary<string, string> diagnosticFixerMap))
                 return 1;
 
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
             var command = new FixCommand(
@@ -132,7 +132,7 @@ namespace Roslynator.CommandLine
                 severityLevel: severityLevel,
                 diagnosticFixMap: diagnosticFixMap?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty,
                 diagnosticFixerMap: diagnosticFixerMap?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty,
-                language: language);
+                projectFilter: projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -144,10 +144,10 @@ namespace Roslynator.CommandLine
             if (!options.TryParseDiagnosticSeverity(CodeAnalyzerOptions.Default.SeverityLevel, out DiagnosticSeverity severityLevel))
                 return 1;
 
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
-            var command = new AnalyzeCommand(options, severityLevel, language);
+            var command = new AnalyzeCommand(options, severityLevel, projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -173,7 +173,7 @@ namespace Roslynator.CommandLine
 
         private static async Task<int> FindSymbolsAsync(FindSymbolsCommandLineOptions options)
         {
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
             if (!TryParseParameterValueAsEnumFlags(options.SymbolKinds, ParameterNames.SymbolKinds, out SymbolSpecialKinds symbolKinds, SymbolFinderOptions.Default.SymbolKinds))
@@ -190,7 +190,7 @@ namespace Roslynator.CommandLine
                 visibilities: visibilities,
                 symbolKinds: symbolKinds,
                 ignoredAttributes: ignoredAttributes,
-                language: language);
+                projectFilter: projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -199,7 +199,7 @@ namespace Roslynator.CommandLine
 
         private static async Task<int> ListSymbolsAsync(ListSymbolsCommandLineOptions options)
         {
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
             if (!TryParseParameterValueAsEnum(options.ContainingNamespaceStyle, ParameterNames.ContainingNamespaceStyle, out SymbolDisplayContainingNamespaceStyle containingNamespaceStyle, DefinitionListOptions.Default.ContainingNamespaceStyle))
@@ -216,7 +216,7 @@ namespace Roslynator.CommandLine
                 depth: depth,
                 visibility: visibility,
                 containingNamespaceStyle: containingNamespaceStyle,
-                language: language);
+                projectFilter: projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -225,7 +225,7 @@ namespace Roslynator.CommandLine
 
         private static async Task<int> FormatAsync(FormatCommandLineOptions options)
         {
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
             string endOfLine = options.EndOfLine;
@@ -238,7 +238,7 @@ namespace Roslynator.CommandLine
                 return 1;
             }
 
-            var command = new FormatCommand(options, language);
+            var command = new FormatCommand(options, projectFilter);
 
             IEnumerable<string> properties = options.Properties;
 
@@ -256,10 +256,10 @@ namespace Roslynator.CommandLine
 
         private static async Task<int> SlnListAsync(SlnListCommandLineOptions options)
         {
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
-            var command = new SlnListCommand(options, language);
+            var command = new SlnListCommand(options, projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -277,10 +277,10 @@ namespace Roslynator.CommandLine
 
         private static async Task<int> PhysicalLinesOfCodeAsync(PhysicalLinesOfCodeCommandLineOptions options)
         {
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
-            var command = new PhysicalLinesOfCodeCommand(options, language);
+            var command = new PhysicalLinesOfCodeCommand(options, projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -289,10 +289,10 @@ namespace Roslynator.CommandLine
 
         private static async Task<int> LogicalLinesOrCodeAsync(LogicalLinesOfCodeCommandLineOptions options)
         {
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
-            var command = new LogicalLinesOfCodeCommand(options, language);
+            var command = new LogicalLinesOfCodeCommand(options, projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -328,7 +328,7 @@ namespace Roslynator.CommandLine
             if (!TryParseParameterValueAsEnum(options.Visibility, ParameterNames.Visibility, out Visibility visibility))
                 return 1;
 
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
             var command = new GenerateDocCommand(
@@ -340,7 +340,7 @@ namespace Roslynator.CommandLine
                 ignoredMemberParts,
                 omitContainingNamespaceParts,
                 visibility,
-                language);
+                projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 
@@ -358,7 +358,7 @@ namespace Roslynator.CommandLine
             if (!TryParseParameterValueAsEnumFlags(options.IgnoredParts, ParameterNames.IgnoredRootParts, out RootDocumentationParts ignoredParts, DocumentationOptions.Default.IgnoredRootParts))
                 return 1;
 
-            if (!options.TryGetLanguage(out string language))
+            if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
             var command = new GenerateDocRootCommand(
@@ -366,7 +366,7 @@ namespace Roslynator.CommandLine
                 depth,
                 ignoredParts,
                 visibility,
-                language);
+                projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);
 

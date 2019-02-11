@@ -20,7 +20,7 @@ namespace Roslynator.CommandLine
 {
     internal class FormatCommand : MSBuildWorkspaceCommand
     {
-        public FormatCommand(FormatCommandLineOptions options, string language) : base(language)
+        public FormatCommand(FormatCommandLineOptions options, in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
         }
@@ -86,7 +86,7 @@ namespace Roslynator.CommandLine
 
             var changedDocuments = new ConcurrentBag<ImmutableArray<DocumentId>>();
 
-            Parallel.ForEach(FilterProjects(solution, Options), project =>
+            Parallel.ForEach(FilterProjects(solution), project =>
             {
                 WriteLine($"  Analyze '{project.Name}'", Verbosity.Minimal);
 

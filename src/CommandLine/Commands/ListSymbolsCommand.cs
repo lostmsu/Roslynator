@@ -19,7 +19,7 @@ namespace Roslynator.CommandLine
             DefinitionListDepth depth,
             Visibility visibility,
             SymbolDisplayContainingNamespaceStyle containingNamespaceStyle,
-            string language) : base(language)
+            in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
             Depth = depth;
@@ -57,7 +57,7 @@ namespace Roslynator.CommandLine
                 omitIEnumerable: !Options.IncludeIEnumerable,
                 assemblyAttributes: Options.AssemblyAttributes);
 
-            ImmutableArray<Compilation> compilations = await GetCompilationsAsync(projectOrSolution, Options, cancellationToken);
+            ImmutableArray<Compilation> compilations = await GetCompilationsAsync(projectOrSolution, cancellationToken);
 
             string text = null;
 
@@ -75,6 +75,8 @@ namespace Roslynator.CommandLine
 
             WriteLine(Verbosity.Minimal);
             WriteLine(text, Verbosity.Minimal);
+
+            //TODO: write summary
 
             if (Options.Output != null)
                 File.WriteAllText(Options.Output, text, Encoding.UTF8);

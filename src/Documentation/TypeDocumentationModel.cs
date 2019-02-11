@@ -17,15 +17,15 @@ namespace Roslynator.Documentation
 
         internal TypeDocumentationModel(
             INamedTypeSymbol typeSymbol,
-            DocumentationModel documentationModel)
+            Visibility visibility)
         {
             Symbol = typeSymbol;
-            DocumentationModel = documentationModel;
+            Visibility = visibility;
         }
 
         public INamedTypeSymbol Symbol { get; }
 
-        internal DocumentationModel DocumentationModel { get; }
+        public Visibility Visibility { get; }
 
         public TypeKind TypeKind => Symbol.TypeKind;
 
@@ -58,7 +58,7 @@ namespace Roslynator.Documentation
             {
                 if (_members.IsDefault)
                 {
-                    _members = Symbol.GetMembers(f => DocumentationModel.IsVisible(f));
+                    _members = Symbol.GetMembers(f => f.IsVisible(Visibility));
                 }
 
                 return _members;
@@ -77,7 +77,7 @@ namespace Roslynator.Documentation
                     }
                     else
                     {
-                        _membersIncludingInherited = Symbol.GetMembers(f => DocumentationModel.IsVisible(f), includeInherited: true);
+                        _membersIncludingInherited = Symbol.GetMembers(f => f.IsVisible(Visibility), includeInherited: true);
                     }
                 }
 
@@ -363,43 +363,6 @@ namespace Roslynator.Documentation
 
                             break;
                         }
-                }
-            }
-        }
-
-        public IEnumerable<IMethodSymbol> GetExtensionMethods()
-        {
-            return DocumentationModel.GetExtensionMethods(Symbol);
-        }
-
-        public IEnumerable<INamedTypeSymbol> GetDerivedTypes()
-        {
-            if (TypeKind.Is(TypeKind.Class, TypeKind.Interface)
-                && !IsStatic)
-            {
-                foreach (INamedTypeSymbol typeSymbol in DocumentationModel.Types)
-                {
-                    if (typeSymbol.BaseType?.OriginalDefinition.Equals(Symbol) == true)
-                        yield return typeSymbol;
-
-                    foreach (INamedTypeSymbol interfaceSymbol in typeSymbol.Interfaces)
-                    {
-                        if (interfaceSymbol.OriginalDefinition.Equals(Symbol))
-                            yield return typeSymbol;
-                    }
-                }
-            }
-        }
-
-        public IEnumerable<INamedTypeSymbol> GetAllDerivedTypes()
-        {
-            if (TypeKind.Is(TypeKind.Class, TypeKind.Interface)
-                && !IsStatic)
-            {
-                foreach (INamedTypeSymbol typeSymbol in DocumentationModel.Types)
-                {
-                    if (typeSymbol.InheritsFrom(Symbol, includeInterfaces: true))
-                        yield return typeSymbol;
                 }
             }
         }

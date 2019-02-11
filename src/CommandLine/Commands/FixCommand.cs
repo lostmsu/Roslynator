@@ -21,7 +21,7 @@ namespace Roslynator.CommandLine
             DiagnosticSeverity severityLevel,
             ImmutableDictionary<string, string> diagnosticFixMap,
             ImmutableDictionary<string, string> diagnosticFixerMap,
-            string language) : base(language)
+            in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
             SeverityLevel = severityLevel;

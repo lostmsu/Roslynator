@@ -94,6 +94,7 @@ namespace Roslynator.CodeFixes
 
         public ImmutableHashSet<string> DiagnosticIdsFixableOneByOne { get; }
 
+        //TODO: ImmutableDictionary<string, ImmutableArray<string>> DiagnosticFixMap
         public ImmutableDictionary<string, string> DiagnosticFixMap { get; }
 
         public ImmutableDictionary<string, string> DiagnosticFixerMap { get; }

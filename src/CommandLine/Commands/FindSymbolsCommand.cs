@@ -30,7 +30,7 @@ namespace Roslynator.CommandLine
             ImmutableArray<Visibility> visibilities,
             SymbolSpecialKinds symbolKinds,
             ImmutableArray<MetadataName> ignoredAttributes,
-            string language) : base(language)
+            in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
             Visibilities = visibilities;
@@ -84,7 +84,7 @@ namespace Roslynator.CommandLine
 
                 Stopwatch stopwatch = Stopwatch.StartNew();
 
-                foreach (Project project in FilterProjects(solution, Options, s => s
+                foreach (Project project in FilterProjects(solution, s => s
                     .GetProjectDependencyGraph()
                     .GetTopologicallySortedProjects(cancellationToken)
                     .ToImmutableArray()))

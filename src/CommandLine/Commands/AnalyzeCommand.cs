@@ -17,7 +17,7 @@ namespace Roslynator.CommandLine
 {
     internal class AnalyzeCommand : MSBuildWorkspaceCommand
     {
-        public AnalyzeCommand(AnalyzeCommandLineOptions options, DiagnosticSeverity severityLevel, string language) : base(language)
+        public AnalyzeCommand(AnalyzeCommandLineOptions options, DiagnosticSeverity severityLevel, in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
             SeverityLevel = severityLevel;

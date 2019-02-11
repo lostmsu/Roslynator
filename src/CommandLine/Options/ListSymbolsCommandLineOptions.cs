@@ -64,6 +64,10 @@ namespace Roslynator.CommandLine
             HelpText = "Indicates whether namespaces should be nested.")]
         public bool NestNamespaces { get; set; }
 
+        [Option(longName: "no-attribute-arguments",
+            HelpText = "Indicates whether attribute arguments should be omitted when displaying an attribute.")]
+        public bool NoAttributeArguments { get; set; }
+
         [Option(longName: "no-indent",
             HelpText = "Indicates whether declarations should not be indented.")]
         public bool NoIndent { get; set; }
@@ -71,10 +75,6 @@ namespace Roslynator.CommandLine
         [Option(longName: "no-precedence-for-system",
             HelpText = "Indicates whether symbols contained in 'System' namespace should be ordered as any other symbols and not before other symbols.")]
         public bool NoPrecedenceForSystem { get; set; }
-
-        [Option(longName: "no-attribute-arguments",
-            HelpText = "Indicates whether attribute arguments should be omitted when displaying an attribute.")]
-        public bool NoAttributeArguments { get; set; }
 
         [Option(longName: "output",
             HelpText = "Defines path to file that will store a list of symbol definitions.",

@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 
 namespace Roslynator.Documentation
 {
+    //TODO: order by namespace, accessibility, typekind, memberkind, name
     internal class DefinitionListOptions
     {
         private readonly ImmutableArray<MetadataName> _ignoredMetadataNames;

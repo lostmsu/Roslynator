@@ -1,57 +1,54 @@
 
-# `generate-declarations` Command
+# `list-symbols` Command
 
-Generates a single file that contains all declarations from specified assemblies.
+List symbol definitions from the specified project or solution.
 
 ## Synopsis
 
 ```
-roslynator generate-declarations
--a|--assemblies
--o|--output
--r|--references
-[--additional-xml-documentation]
+roslynator list-symbols <PROJECT|SOLUTION>
+[--assembly-attributes]
+[--containing-namespace-style]
 [--depth]
 [--empty-line-between-members]
+[--file-log]
+[--file-log-verbosity]
 [--format-base-list]
 [--format-constraints]
 [--format-parameters]
-[--fully-qualified-names]
 [--ignored-names]
-[--ignored-parts]
+[--ignored-projects]
 [--include-ienumerable]
 [--indent-chars]
+[--language]
 [--merge-attributes]
+[--msbuild-path]
 [--nest-namespaces]
-[--no-default-literal]
+[--no-attribute-arguments]
 [--no-indent]
-[--no-new-line-before-open-brace]
 [--no-precedence-for-system]
-[--omit-attribute-arguments]
+[--output]
+[--projects]
+[-p|--properties]
+[-v|--verbosity]
 [--visibility]
 ```
 
-## Options
+## Arguments
 
-### Required Options
+**`PROJECT|SOLUTION`**
 
-**`-a|--assemblies`** `<ASSEMBLIES>`
-
-Defines one or more assemblies that should be used as a source for the documentation.
-
-**`-o|--output`** `<OUTPUT_DIRECTORY>`
-
-Defines a path for the output directory.
-
-**`-r|--references`** `<ASSEMBLY_REFERENCE | ASSEMBLY_REFERENCES_FILE>`
-
-Defines one or more paths to assembly or a file that contains a list of all assemblies. Each assembly must be on separate line.
+The project or solution to analyze.
 
 ### Optional Options
 
-**`[--additional-xml-documentation]`** `<XML_DOCUMENTATION_FILE>`
+**`[--assembly-attributes]`**
 
-Defines one or more xml documentation files that should be included. These files can contain a documentation for namespaces, for instance.
+Indicates whether assembly attributes should be displayed.
+
+**`[--containing-namespace-style]`** `<CONTAINING-NAMESPACE-STYLE>`
+
+Defines how a containing namespace of a symbol is displayed. Allowed values are omitted, omitted-as-containing or included. Default value is omitted.
 
 **`[--depth]`** `{member|type|namespace}`
 
@@ -73,17 +70,13 @@ Indicates whether constraints should be formatted on a multiple lines.
 
 Indicates whether parameters should be formatted on a multiple lines.
 
-**`[--fully-qualified-names]`**
-
-Indicates whether type names should be fully qualified.
-
 **`[--ignored-names]`** `<FULLY_QUALIFIED_METADATA_NAME>`
 
 Defines a list of metadata names that should be excluded from a documentation. Namespace of type names can be specified.
 
-**`[--ignored-parts]`** `{auto-generated-comment|assembly-attributes}`
+**`--ignored-projects`** <PROJECT_NAME>
 
-Defines parts of a declaration list that should be excluded.
+Defines projects that should be skipped.
 
 **`[--include-ienumerable]`**
 
@@ -93,33 +86,51 @@ Indicates whether interface `System.Collections.IEnumerable` should be included 
 
 Defines characters that should be used for indentation. Default value is four spaces.
 
+**`--language`** `{cs[harp]|v[isual-]b[asic])}`
+
+Defines project language.
+
 **`[--merge-attributes]`**
 
 Indicates whether attributes should be displayed in a single attribute list.
+
+**`--msbuild-path`** <MSBUILD_PATH>
+
+Defines a path to MSBuild.
+
+*Note: First found instance of MSBuild will be used if the path to MSBuild is not specified.*
 
 **`[--nest-namespaces]`**
 
 Indicates whether namespaces should be nested.
 
-**`[--no-default-literal]`**
+**`[--no-attribute-arguments]`**
 
-Indicates whether default expression (`default(T)`) should be used instead of default literal (`default`).
+Indicates whether attribute arguments should be omitted when displaying an attribute.
 
 **`[--no-indent]`**
 
 Indicates whether declarations should not be indented.
 
-**`[--no-new-line-before-open-brace]`**
-
-Indicates whether opening braced should not be placed on a new line.
-
 **`[--no-precedence-for-system]`**
 
 Indicates whether symbols contained in `System` namespace should be ordered as any other symbols and not before other symbols.
 
-**`[--omit-attribute-arguments]`**
+**`[--output]`** `<OUTPUT_PATH>`
 
-Indicates whether attribute arguments should be omitted when displaying an attribute.
+Defines path to file that will store a list of symbol definitions.
+
+**`--projects`** <PROJECT_NAME>
+
+Defines projects that should be analyzed.
+
+**`-p|--properties`** `<NAME=VALUE>`
+
+Defines one or more MSBuild properties.
+
+**`-v|--verbosity`** `{q[uiet]|m[inimal]|n[ormal]|d[etailed]|diag[nostic]}`
+
+Defines the amount of information to display in the log.
 
 **`[--visibility]`** `{public|internal|private}`
 

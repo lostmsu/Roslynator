@@ -13,6 +13,8 @@ namespace Roslynator.Documentation
 {
     public sealed class DocumentationModel
     {
+        private ImmutableDictionary<string, CultureInfo> _cultures = ImmutableDictionary<string, CultureInfo>.Empty;
+
         private ImmutableDictionary<IAssemblySymbol, Compilation> _compilationMap;
 
         private readonly Dictionary<ISymbol, SymbolDocumentationData> _symbolData;
@@ -68,6 +70,38 @@ namespace Roslynator.Documentation
         public Visibility Visibility { get; }
 
         public bool IsVisible(ISymbol symbol) => symbol.IsVisible(Visibility);
+
+        public IEnumerable<INamedTypeSymbol> GetDerivedTypes(INamedTypeSymbol typeSymbol)
+        {
+            if (typeSymbol.TypeKind.Is(TypeKind.Class, TypeKind.Interface)
+                && !typeSymbol.IsStatic)
+            {
+                foreach (INamedTypeSymbol symbol in Types)
+                {
+                    if (symbol.BaseType?.OriginalDefinition.Equals(typeSymbol) == true)
+                        yield return symbol;
+
+                    foreach (INamedTypeSymbol interfaceSymbol in symbol.Interfaces)
+                    {
+                        if (interfaceSymbol.OriginalDefinition.Equals(typeSymbol))
+                            yield return symbol;
+                    }
+                }
+            }
+        }
+
+        public IEnumerable<INamedTypeSymbol> GetAllDerivedTypes(INamedTypeSymbol typeSymbol)
+        {
+            if (typeSymbol.TypeKind.Is(TypeKind.Class, TypeKind.Interface)
+                && !typeSymbol.IsStatic)
+            {
+                foreach (INamedTypeSymbol symbol in Types)
+                {
+                    if (symbol.InheritsFrom(typeSymbol, includeInterfaces: true))
+                        yield return symbol;
+                }
+            }
+        }
 
         public IEnumerable<IMethodSymbol> GetExtensionMethods()
         {
@@ -201,7 +235,7 @@ namespace Roslynator.Documentation
                 return (TypeDocumentationModel)data.Model;
             }
 
-            var typeModel = new TypeDocumentationModel(typeSymbol, this);
+            var typeModel = new TypeDocumentationModel(typeSymbol, Visibility);
 
             _symbolData[typeSymbol] = data.WithModel(typeModel);
 
@@ -263,14 +297,20 @@ namespace Roslynator.Documentation
                     return xmlDocumentation;
                 }
 
-                //TODO: preferredCulture
-                string xml = symbol.GetDocumentationCommentXml(expandIncludes: true);
+                CultureInfo preferredCulture = null;
+
+                if (preferredCultureName != null
+                    && !_cultures.TryGetValue(preferredCultureName, out preferredCulture))
+                {
+                    preferredCulture = ImmutableInterlocked.GetOrAdd(ref _cultures, preferredCultureName, f => new CultureInfo(f));
+                }
+
+                string xml = symbol.GetDocumentationCommentXml(preferredCulture: preferredCulture, expandIncludes: true);
 
                 if (!string.IsNullOrEmpty(xml))
                 {
                     xml = XmlDocumentation.Unindent(xml);
 
-                    //TODO: XmlException
                     XElement element = XElement.Parse(xml, LoadOptions.PreserveWhitespace);
 
                     xmlDocumentation = new SymbolXmlDocumentation(symbol, symbol.GetDocumentationCommentId(), element);

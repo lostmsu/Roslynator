@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using System.Linq;
 using CommandLine;
 
 namespace Roslynator.CommandLine
@@ -14,7 +15,7 @@ namespace Roslynator.CommandLine
             MetaValue = "<PROJECT|SOLUTION>")]
         public string Path { get; set; }
 
-        [Option(longName: "ignored-projects",
+        [Option(longName: ParameterNames.IgnoredProjects,
             HelpText = "Defines projects that should not be analyzed.",
             MetaValue = "<PROJECT_NAME>")]
         public IEnumerable<string> IgnoredProjects { get; set; }
@@ -29,7 +30,7 @@ namespace Roslynator.CommandLine
             MetaValue = "<MSBUILD_PATH>")]
         public string MSBuildPath { get; set; }
 
-        [Option(longName: "projects",
+        [Option(longName: ParameterNames.Projects,
             HelpText = "Defines projects that should be analyzed.",
             MetaValue = "<PROJECT_NAME>")]
         public IEnumerable<string> Projects { get; set; }
@@ -45,6 +46,29 @@ namespace Roslynator.CommandLine
                 return ParseHelpers.TryParseLanguage(Language, out value);
 
             value = null;
+            return true;
+        }
+
+        internal bool TryGetProjectFilter(out ProjectFilter projectFilter)
+        {
+            projectFilter = default;
+
+            string language = null;
+
+            if (Language != null
+                && !ParseHelpers.TryParseLanguage(Language, out language))
+            {
+                return false;
+            }
+
+            if (Projects?.Any() == true
+                && IgnoredProjects?.Any() == true)
+            {
+                Logger.WriteLine($"Cannot specify both '{ParameterNames.Projects}' and '{ParameterNames.IgnoredProjects}'.", Roslynator.Verbosity.Quiet);
+                return false;
+            }
+
+            projectFilter = new ProjectFilter(Projects, IgnoredProjects, language);
             return true;
         }
     }

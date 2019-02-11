@@ -16,12 +16,17 @@ namespace Roslynator.CommandLine
 {
     internal abstract class MSBuildWorkspaceCommand
     {
-        protected MSBuildWorkspaceCommand(string language)
+        protected MSBuildWorkspaceCommand(in ProjectFilter projectFilter)
         {
-            Language = language;
+            ProjectFilter = projectFilter;
         }
 
-        public string Language { get; }
+        public string Language
+        {
+            get { return ProjectFilter.Language; }
+        }
+
+        public ProjectFilter ProjectFilter { get; }
 
         public abstract Task<CommandResult> ExecuteAsync(ProjectOrSolution projectOrSolution, CancellationToken cancellationToken = default);
 
@@ -186,18 +191,15 @@ namespace Roslynator.CommandLine
 
         private protected IEnumerable<Project> FilterProjects(
             Solution solution,
-            MSBuildCommandLineOptions options,
             Func<Solution, ImmutableArray<ProjectId>> getProjects = null)
         {
-            var projectFilter = new ProjectFilter(options.Projects, options.IgnoredProjects, Language);
-
             Workspace workspace = solution.Workspace;
 
             foreach (ProjectId projectId in (getProjects != null) ? getProjects(solution) : solution.ProjectIds)
             {
                 Project project = workspace.CurrentSolution.GetProject(projectId);
 
-                if (projectFilter.IsMatch(project))
+                if (ProjectFilter.IsMatch(project))
                 {
                     yield return project;
                 }
@@ -210,7 +212,6 @@ namespace Roslynator.CommandLine
 
         private protected async Task<ImmutableArray<Compilation>> GetCompilationsAsync(
             ProjectOrSolution projectOrSolution,
-            MSBuildCommandLineOptions options,
             CancellationToken cancellationToken)
         {
             ImmutableArray<Compilation>.Builder compilations = ImmutableArray.CreateBuilder<Compilation>();
@@ -233,7 +234,7 @@ namespace Roslynator.CommandLine
 
                 Stopwatch stopwatch = Stopwatch.StartNew();
 
-                foreach (Project project in FilterProjects(solution, options, s => s
+                foreach (Project project in FilterProjects(solution, s => s
                     .GetProjectDependencyGraph()
                     .GetTopologicallySortedProjects(cancellationToken)
                     .ToImmutableArray()))
