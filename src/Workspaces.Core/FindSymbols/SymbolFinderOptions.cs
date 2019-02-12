@@ -19,13 +19,13 @@ namespace Roslynator.FindSymbols
             ImmutableArray<Visibility> visibilities = default,
             ImmutableArray<MetadataName> ignoredAttributes = default,
             bool ignoreObsolete = false,
-            bool includeGeneratedCode = false,
+            bool ignoreGeneratedCode = false,
             bool unusedOnly = false)
         {
             SymbolKinds = symbolKinds;
             Visibilities = (!visibilities.IsDefault) ? visibilities : _allVisibilities;
             IgnoredAttributes = (!ignoredAttributes.IsDefault) ? ignoredAttributes : ImmutableArray<MetadataName>.Empty;
-            IncludeGeneratedCode = includeGeneratedCode;
+            IgnoreGeneratedCode = ignoreGeneratedCode;
             UnusedOnly = unusedOnly;
             IgnoreObsolete = ignoreObsolete;
 
@@ -64,7 +64,7 @@ namespace Roslynator.FindSymbols
 
         public bool IgnoreObsolete { get; }
 
-        public bool IncludeGeneratedCode { get; }
+        public bool IgnoreGeneratedCode { get; }
 
         public bool UnusedOnly { get; }
 
@@ -104,15 +104,6 @@ namespace Roslynator.FindSymbols
             }
 
             return false;
-        }
-
-        [Flags]
-        internal enum VisibilityFlags
-        {
-            None = 0,
-            Public = 1,
-            Internal = 2,
-            Private = 4
         }
     }
 }

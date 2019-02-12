@@ -59,7 +59,7 @@ namespace Roslynator.CommandLine
                 visibilities: Visibilities,
                 ignoredAttributes: IgnoredAttributes,
                 ignoreObsolete: Options.IgnoreObsolete,
-                includeGeneratedCode: Options.IncludeGeneratedCode,
+                ignoreGeneratedCode: Options.IgnoreGeneratedCode,
                 unusedOnly: Options.UnusedOnly);
 
             var progress = new FindSymbolsProgress();
@@ -135,6 +135,7 @@ namespace Roslynator.CommandLine
                 WriteLine($"Done analyzing solution '{solution.FilePath}' in {stopwatch.Elapsed:mm\\:ss\\.ff}", Verbosity.Minimal);
             }
 
+            //TODO: Summary?
             if (allSymbols.Any())
             {
                 Dictionary<SymbolSpecialKind, int> countByKind = allSymbols

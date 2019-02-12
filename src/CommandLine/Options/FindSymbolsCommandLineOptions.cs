@@ -19,8 +19,8 @@ namespace Roslynator.CommandLine
         [Option(longName: "ignored-symbols")]
         public IEnumerable<string> IgnoredSymbols { get; set; }
 
-        [Option(longName: "include-generated-code")]
-        public bool IncludeGeneratedCode { get; set; }
+        [Option(longName: "ignore-generated-code")]
+        public bool IgnoreGeneratedCode { get; set; }
 
         [Option(longName: ParameterNames.SymbolKinds)]
         public IEnumerable<string> SymbolKinds { get; set; }

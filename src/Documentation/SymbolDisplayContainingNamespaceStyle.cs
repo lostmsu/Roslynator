@@ -5,6 +5,7 @@ namespace Roslynator.Documentation
     internal enum SymbolDisplayContainingNamespaceStyle
     {
         Omitted = 0,
+        //TODO: remove OmittedAsContaining
         OmittedAsContaining = 1,
         Included = 2,
     }

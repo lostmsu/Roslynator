@@ -4,7 +4,6 @@ namespace Roslynator.CommandLine
 {
     internal static class ParameterNames
     {
-        public const string ContainingNamespaceStyle = "containing-namespace-style";
         public const string Depth = "depth";
         public const string IgnoredMemberParts = "ignored-member-parts";
         public const string IgnoredNamespaceParts = "ignored-namespace-parts";

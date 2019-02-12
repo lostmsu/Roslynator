@@ -17,44 +17,48 @@ namespace Roslynator.CommandLine
         public ListSymbolsCommand(
             ListSymbolsCommandLineOptions options,
             DefinitionListDepth depth,
-            Visibility visibility,
-            SymbolDisplayContainingNamespaceStyle containingNamespaceStyle,
+            ImmutableArray<Visibility> visibilities,
+            ImmutableArray<MetadataName> ignoredNames,
+            ImmutableArray<MetadataName> ignoredAttributeNames,
             in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
             Depth = depth;
-            Visibility = visibility;
-            ContainingNamespaceStyle = containingNamespaceStyle;
+            Visibilities = visibilities;
+            IgnoredNames = ignoredNames;
+            IgnoredAttributeNames = ignoredAttributeNames;
         }
 
         public ListSymbolsCommandLineOptions Options { get; }
 
         public DefinitionListDepth Depth { get; }
 
-        public Visibility Visibility { get; }
+        public ImmutableArray<Visibility> Visibilities { get; }
 
-        public SymbolDisplayContainingNamespaceStyle ContainingNamespaceStyle { get; }
+        public ImmutableArray<MetadataName> IgnoredNames { get; }
+
+        public ImmutableArray<MetadataName> IgnoredAttributeNames { get; }
 
         public override async Task<CommandResult> ExecuteAsync(ProjectOrSolution projectOrSolution, CancellationToken cancellationToken = default)
         {
             AssemblyResolver.Register();
 
             var options = new DefinitionListOptions(
-                visibility: Visibility,
+                visibilities: Visibilities,
                 depth: Depth,
-                containingNamespaceStyle: ContainingNamespaceStyle,
-                ignoredNames: Options.IgnoredNames,
-                indent: !Options.NoIndent,
+                omitContainingNamespace: Options.OmitContainingNamespace,
+                ignoredNames: IgnoredNames,
+                ignoredAttributeNames: IgnoredAttributeNames,
                 indentChars: Options.IndentChars,
-                placeSystemNamespaceFirst: !Options.NoPrecedenceForSystem,
+                placeSystemNamespaceFirst: true,
                 nestNamespaces: Options.NestNamespaces,
                 emptyLineBetweenMembers: Options.EmptyLineBetweenMembers,
                 formatBaseList: Options.FormatBaseList,
                 formatConstraints: Options.FormatConstraints,
                 formatParameters: Options.FormatParameters,
-                splitAttributes: !Options.MergeAttributes,
+                splitAttributes: true,
                 includeAttributeArguments: !Options.NoAttributeArguments,
-                omitIEnumerable: !Options.IncludeIEnumerable,
+                omitIEnumerable: true,
                 assemblyAttributes: Options.AssemblyAttributes);
 
             ImmutableArray<Compilation> compilations = await GetCompilationsAsync(projectOrSolution, cancellationToken);
@@ -66,7 +70,7 @@ namespace Roslynator.CommandLine
                 var builder = new DefinitionListWriter(
                     writer,
                     options: options,
-                    comparer: SymbolDefinitionComparer.GetInstance(systemNamespaceFirst: !Options.NoPrecedenceForSystem));
+                    comparer: SymbolDefinitionComparer.SystemNamespaceFirstInstance);
 
                 builder.Write(compilations.Select(f => f.Assembly));
 
@@ -76,7 +80,7 @@ namespace Roslynator.CommandLine
             WriteLine(Verbosity.Minimal);
             WriteLine(text, Verbosity.Minimal);
 
-            //TODO: write summary
+            //TODO: Summary
 
             if (Options.Output != null)
                 File.WriteAllText(Options.Output, text, Encoding.UTF8);

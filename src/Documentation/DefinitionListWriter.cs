@@ -38,14 +38,13 @@ namespace Roslynator.Documentation
         public virtual bool IsVisibleType(INamedTypeSymbol typeSymbol)
         {
             return !typeSymbol.IsImplicitlyDeclared
-                && typeSymbol.IsVisible(Options.Visibility)
+                && Options.IsVisible(typeSymbol)
                 && !Options.ShouldBeIgnored(typeSymbol);
         }
 
         public virtual bool IsVisibleMember(ISymbol symbol)
         {
-            if (!symbol.IsVisible(Options.Visibility))
-                return false;
+            bool canBeImplicitlyDeclared = false;
 
             switch (symbol.Kind)
             {
@@ -53,7 +52,7 @@ namespace Roslynator.Documentation
                 case SymbolKind.Field:
                 case SymbolKind.Property:
                     {
-                        return !symbol.IsImplicitlyDeclared;
+                        break;
                     }
                 case SymbolKind.Method:
                     {
@@ -63,30 +62,27 @@ namespace Roslynator.Documentation
                         {
                             case MethodKind.Constructor:
                                 {
-                                    switch (methodSymbol.ContainingType.TypeKind)
+                                    TypeKind typeKind = methodSymbol.ContainingType.TypeKind;
+
+                                    Debug.Assert(typeKind == TypeKind.Class || typeKind == TypeKind.Struct, typeKind.ToString());
+
+                                    if (typeKind == TypeKind.Class)
                                     {
-                                        case TypeKind.Class:
-                                            {
-                                                if (!methodSymbol.Parameters.Any())
-                                                    return true;
-
-                                                break;
-                                            }
-                                        case TypeKind.Struct:
-                                            {
-                                                if (!methodSymbol.Parameters.Any())
-                                                    return false;
-
-                                                break;
-                                            }
+                                        if (!methodSymbol.Parameters.Any())
+                                            canBeImplicitlyDeclared = true;
+                                    }
+                                    else if (typeKind == TypeKind.Struct)
+                                    {
+                                        if (!methodSymbol.Parameters.Any())
+                                            return false;
                                     }
 
-                                    return !symbol.IsImplicitlyDeclared;
+                                    break;
                                 }
                             case MethodKind.Conversion:
                             case MethodKind.UserDefinedOperator:
                             case MethodKind.Ordinary:
-                                return !symbol.IsImplicitlyDeclared;
+                                break;
                             case MethodKind.ExplicitInterfaceImplementation:
                             case MethodKind.StaticConstructor:
                             case MethodKind.Destructor:
@@ -102,6 +98,8 @@ namespace Roslynator.Documentation
                                     return false;
                                 }
                         }
+
+                        break;
                     }
                 default:
                     {
@@ -109,6 +107,10 @@ namespace Roslynator.Documentation
                         return false;
                     }
             }
+
+            return (canBeImplicitlyDeclared || !symbol.IsImplicitlyDeclared)
+                && Options.IsVisible(symbol)
+                && !Options.HasIgnoredAttribute(symbol);
         }
 
         public virtual bool IsVisibleAttribute(INamedTypeSymbol attributeType)
@@ -172,7 +174,7 @@ namespace Roslynator.Documentation
                 ImmutableArray<SymbolDisplayPart> attributeParts = SymbolDefinitionDisplay.GetAttributesParts(
                     assembly,
                     IsVisibleAttribute,
-                    containingNamespaceStyle: Options.ContainingNamespaceStyle,
+                    containingNamespaceStyle: (Options.OmitContainingNamespace) ?  SymbolDisplayContainingNamespaceStyle.Omitted : SymbolDisplayContainingNamespaceStyle.Included,
                     splitAttributes: Options.SplitAttributes,
                     includeAttributeArguments: Options.IncludeAttributeArguments);
 
@@ -314,19 +316,7 @@ namespace Roslynator.Documentation
 
         private void WriteStartNamedType(INamedTypeSymbol namedType)
         {
-            Write(SymbolDefinitionDisplay.GetDisplayParts(
-                namedType,
-                SymbolDefinitionDisplayFormats.FullDefinition_NameOnly,
-                SymbolDisplayTypeDeclarationOptions.IncludeAccessibility | SymbolDisplayTypeDeclarationOptions.IncludeModifiers,
-                containingNamespaceStyle: Options.ContainingNamespaceStyle,
-                isVisibleAttribute: IsVisibleAttribute,
-                formatBaseList: Options.FormatBaseList,
-                formatConstraints: Options.FormatConstraints,
-                formatParameters: Options.FormatParameters,
-                splitAttributes: Options.SplitAttributes,
-                includeAttributeArguments: Options.IncludeAttributeArguments,
-                omitIEnumerable: Options.OmitIEnumerable,
-                useDefaultLiteral: Options.UseDefaultLiteral));
+            Write(namedType, SymbolDefinitionDisplayFormats.FullDefinition_NameOnly);
 
             TypeKind typeKind = namedType.TypeKind;
 
@@ -340,11 +330,7 @@ namespace Roslynator.Documentation
 
         private void WriteEndNamedType(INamedTypeSymbol namedType)
         {
-            if (namedType.TypeKind == TypeKind.Delegate)
-            {
-                WriteLine(";");
-            }
-            else
+            if (namedType.TypeKind != TypeKind.Delegate)
             {
                 DecreaseIndentation();
             }
@@ -367,81 +353,11 @@ namespace Roslynator.Documentation
 
                         while (true)
                         {
-                            ImmutableArray<SymbolDisplayPart> attributeParts = SymbolDefinitionDisplay.GetAttributesParts(
-                                en.Current,
-                                predicate: IsVisibleAttribute,
-                                containingNamespaceStyle: Options.ContainingNamespaceStyle,
-                                splitAttributes: Options.SplitAttributes,
-                                includeAttributeArguments: Options.IncludeAttributeArguments);
-
-                            Write(attributeParts);
-
-                            //TODO: OmittedAsContaining
-                            SymbolDisplayFormat format = (Options.ContainingNamespaceStyle == SymbolDisplayContainingNamespaceStyle.Omitted)
+                            SymbolDisplayFormat format = (Options.OmitContainingNamespace)
                                 ? SymbolDefinitionDisplayFormats.FullDefinition_NameAndContainingTypes
                                 : SymbolDefinitionDisplayFormats.FullDefinition_NameAndContainingTypesAndNamespaces;
 
-                            ImmutableArray<SymbolDisplayPart> parts = en.Current.ToDisplayParts(format);
-
-                            if (Options.UseDefaultLiteral
-                                && en.Current.GetParameters().Any(f => f.HasExplicitDefaultValue))
-                            {
-                                parts = SymbolDefinitionDisplay.ReplaceDefaultExpressionWithDefaultLiteral(en.Current, parts);
-                            }
-
-                            if (en.Current.Kind == SymbolKind.Property)
-                            {
-                                var propertySymbol = (IPropertySymbol)en.Current;
-
-                                IMethodSymbol getMethod = propertySymbol.GetMethod;
-
-                                if (getMethod != null)
-                                    parts = SymbolDefinitionDisplay.AddAccessorAttributes(parts, getMethod);
-
-                                IMethodSymbol setMethod = propertySymbol.SetMethod;
-
-                                if (setMethod != null)
-                                    parts = SymbolDefinitionDisplay.AddAccessorAttributes(parts, setMethod);
-                            }
-                            else if (en.Current.Kind == SymbolKind.Event)
-                            {
-                                var eventSymbol = (IEventSymbol)en.Current;
-
-                                IMethodSymbol addMethod = eventSymbol.AddMethod;
-
-                                if (addMethod != null)
-                                    parts = SymbolDefinitionDisplay.AddAccessorAttributes(parts, addMethod);
-
-                                IMethodSymbol removeMethod = eventSymbol.RemoveMethod;
-
-                                if (removeMethod != null)
-                                    parts = SymbolDefinitionDisplay.AddAccessorAttributes(parts, removeMethod);
-                            }
-
-                            ImmutableArray<IParameterSymbol> parameters = en.Current.GetParameters();
-
-                            if (parameters.Any())
-                            {
-                                parts = SymbolDefinitionDisplay.AddParameterAttributes(
-                                    parts,
-                                    en.Current,
-                                    parameters,
-                                    containingNamespaceStyle: Options.ContainingNamespaceStyle);
-
-                                if (Options.FormatParameters
-                                    && parameters.Length > 1)
-                                {
-                                    ImmutableArray<SymbolDisplayPart>.Builder builder = parts.ToBuilder();
-                                    SymbolDefinitionDisplay.FormatParameters(en.Current, builder, Options.IndentChars);
-
-                                    parts = builder.ToImmutableArray();
-                                }
-                            }
-
-                            Write(parts);
-
-                            if (en.Current.Kind != SymbolKind.Property)
-                                Write(";");
+                            Write(en.Current, format);
 
                             WriteLine();
 
@@ -488,8 +404,6 @@ namespace Roslynator.Documentation
                     do
                     {
                         Write(en.Current, SymbolDefinitionDisplayFormats.FullDefinition_NameOnly);
-                        //TODO: comma?
-                        Write(",");
                         WriteLine();
                     }
                     while (en.MoveNext());
@@ -499,7 +413,23 @@ namespace Roslynator.Documentation
 
         private void Write(ISymbol symbol, SymbolDisplayFormat format)
         {
-            Write(symbol.ToDisplayParts(format));
+            ImmutableArray<SymbolDisplayPart> parts = SymbolDefinitionDisplay.GetDisplayParts(
+                symbol,
+                format,
+                SymbolDisplayTypeDeclarationOptions.IncludeAccessibility | SymbolDisplayTypeDeclarationOptions.IncludeModifiers,
+                containingNamespaceStyle: (Options.OmitContainingNamespace) ? SymbolDisplayContainingNamespaceStyle.Omitted : SymbolDisplayContainingNamespaceStyle.Included,
+                isVisibleAttribute: IsVisibleAttribute,
+                formatBaseList: Options.FormatBaseList,
+                formatConstraints: Options.FormatConstraints,
+                formatParameters: Options.FormatParameters,
+                splitAttributes: Options.SplitAttributes,
+                includeAttributeArguments: Options.IncludeAttributeArguments,
+                omitIEnumerable: Options.OmitIEnumerable,
+                useDefaultLiteral: Options.UseDefaultLiteral,
+                addAccessorAttributes: true,
+                addParameterAttributes: true);
+
+            Write(parts);
         }
 
         private void Write(ImmutableArray<SymbolDisplayPart> parts)
@@ -508,11 +438,8 @@ namespace Roslynator.Documentation
             {
                 Write(part.ToString());
 
-                if (part.Kind == SymbolDisplayPartKind.LineBreak
-                    && Options.Indent)
-                {
+                if (part.Kind == SymbolDisplayPartKind.LineBreak)
                     _pendingIndentation = true;
-                }
             }
         }
 
@@ -526,8 +453,7 @@ namespace Roslynator.Documentation
         {
             Writer.WriteLine();
 
-            if (Options.Indent)
-                _pendingIndentation = true;
+            _pendingIndentation = true;
         }
 
         public void WriteLine(string value)

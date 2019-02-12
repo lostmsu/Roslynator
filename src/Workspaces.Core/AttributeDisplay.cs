@@ -52,6 +52,7 @@ namespace Roslynator
                 case "AssemblyTitleAttribute":
                 case "AssemblyTrademarkAttribute":
                 case "AttributeUsageAttribute":
+                case "BarAttribute":
                 case "CLSCompliantAttribute":
                 case "ComVisibleAttribute":
                 case "DefaultValueAttribute":

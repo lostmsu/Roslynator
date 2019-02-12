@@ -8,7 +8,6 @@ List symbol definitions from the specified project or solution.
 ```
 roslynator list-symbols <PROJECT|SOLUTION>
 [--assembly-attributes]
-[--containing-namespace-style]
 [--depth]
 [--empty-line-between-members]
 [--file-log]
@@ -16,17 +15,15 @@ roslynator list-symbols <PROJECT|SOLUTION>
 [--format-base-list]
 [--format-constraints]
 [--format-parameters]
+[--ignored-attribute-names]
 [--ignored-names]
 [--ignored-projects]
-[--include-ienumerable]
 [--indent-chars]
 [--language]
-[--merge-attributes]
 [--msbuild-path]
 [--nest-namespaces]
 [--no-attribute-arguments]
-[--no-indent]
-[--no-precedence-for-system]
+[--omit-containing-namespace]
 [--output]
 [--projects]
 [-p|--properties]
@@ -45,10 +42,6 @@ The project or solution to analyze.
 **`[--assembly-attributes]`**
 
 Indicates whether assembly attributes should be displayed.
-
-**`[--containing-namespace-style]`** `<CONTAINING-NAMESPACE-STYLE>`
-
-Defines how a containing namespace of a symbol is displayed. Allowed values are omitted, omitted-as-containing or included. Default value is omitted.
 
 **`[--depth]`** `{member|type|namespace}`
 
@@ -70,6 +63,10 @@ Indicates whether constraints should be formatted on a multiple lines.
 
 Indicates whether parameters should be formatted on a multiple lines.
 
+**`[--ignored-attribute-names]`** `<FULLY_QUALIFIED_METADATA_NAME>`
+
+Defines a list of attributes' names that should be ignored, i.e. if the symbol has an attribute with the specified name it will be ignored.
+
 **`[--ignored-names]`** `<FULLY_QUALIFIED_METADATA_NAME>`
 
 Defines a list of metadata names that should be excluded from a documentation. Namespace of type names can be specified.
@@ -78,10 +75,6 @@ Defines a list of metadata names that should be excluded from a documentation. N
 
 Defines projects that should be skipped.
 
-**`[--include-ienumerable]`**
-
-Indicates whether interface `System.Collections.IEnumerable` should be included in a documentation if a type also implements interface `System.Collections.Generic.IEnumerable<T>`.
-
 **`[--indent-chars]`** `<INDENT_CHARS>`
 
 Defines characters that should be used for indentation. Default value is four spaces.
@@ -89,10 +82,6 @@ Defines characters that should be used for indentation. Default value is four sp
 **`--language`** `{cs[harp]|v[isual-]b[asic])}`
 
 Defines project language.
-
-**`[--merge-attributes]`**
-
-Indicates whether attributes should be displayed in a single attribute list.
 
 **`--msbuild-path`** <MSBUILD_PATH>
 
@@ -108,13 +97,9 @@ Indicates whether namespaces should be nested.
 
 Indicates whether attribute arguments should be omitted when displaying an attribute.
 
-**`[--no-indent]`**
+**`[--omit-containing-namespace]`**
 
-Indicates whether definitions should not be indented.
-
-**`[--no-precedence-for-system]`**
-
-Indicates whether symbols contained in `System` namespace should be ordered as any other symbols and not before other symbols.
+Indicates whether containing namespace should be omitted when displayed a symbol.
 
 **`[--output]`** `<OUTPUT_PATH>`
 

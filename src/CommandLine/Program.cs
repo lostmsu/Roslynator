@@ -202,20 +202,24 @@ namespace Roslynator.CommandLine
             if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
-            if (!TryParseParameterValueAsEnum(options.ContainingNamespaceStyle, ParameterNames.ContainingNamespaceStyle, out SymbolDisplayContainingNamespaceStyle containingNamespaceStyle, DefinitionListOptions.Default.ContainingNamespaceStyle))
-                return 1;
-
             if (!TryParseParameterValueAsEnum(options.Depth, ParameterNames.Depth, out DefinitionListDepth depth, DefinitionListOptions.Default.Depth))
                 return 1;
 
-            if (!TryParseParameterValueAsEnum(options.Visibility, ParameterNames.Visibility, out Visibility visibility, DefinitionListOptions.Default.Visibility))
+            if (!TryParseParameterValueAsEnumValues(options.Visibility, ParameterNames.Visibility, out ImmutableArray<Visibility> visibilities, DefinitionListOptions.Default.Visibilities))
+                return 1;
+
+            if (!TryParseMetadataNames(options.IgnoredNames, out ImmutableArray<MetadataName> ignoredNames))
+                return 1;
+
+            if (!TryParseMetadataNames(options.IgnoredAttributeNames, out ImmutableArray<MetadataName> ignoredAttributeNames))
                 return 1;
 
             var command = new ListSymbolsCommand(
                 options: options,
                 depth: depth,
-                visibility: visibility,
-                containingNamespaceStyle: containingNamespaceStyle,
+                visibilities: visibilities,
+                ignoredNames,
+                ignoredAttributeNames,
                 projectFilter: projectFilter);
 
             CommandResult result = await command.ExecuteAsync(options.Path, options.MSBuildPath, options.Properties);

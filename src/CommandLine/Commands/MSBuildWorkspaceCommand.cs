@@ -62,7 +62,32 @@ namespace Roslynator.CommandLine
                     ProjectOrSolution projectOrSolution = await OpenProjectOrSolutionAsync(path, workspace, ConsoleProgressReporter.Default, cancellationToken);
 
                     if (projectOrSolution != default)
+                    {
+                        Solution solution = projectOrSolution.AsSolution();
+
+                        if (solution != null)
+                        {
+                            foreach (string name in ProjectFilter.Names)
+                            {
+                                if (!solution.ContainsProject(name))
+                                {
+                                    WriteLine($"Project '{name}' does not exist.", Verbosity.Quiet);
+                                    return CommandResult.Fail;
+                                }
+                            }
+
+                            foreach (string name in ProjectFilter.IgnoredNames)
+                            {
+                                if (!solution.ContainsProject(name))
+                                {
+                                    WriteLine($"Project '{name}' does not exist.", Verbosity.Quiet);
+                                    return CommandResult.Fail;
+                                }
+                            }
+                        }
+
                         return await ExecuteAsync(projectOrSolution, cancellationToken);
+                    }
                 }
                 catch (OperationCanceledException ex)
                 {

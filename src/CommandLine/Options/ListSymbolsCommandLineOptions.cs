@@ -15,11 +15,6 @@ namespace Roslynator.CommandLine
             HelpText = "Indicates whether assembly attributes should be displayed.")]
         public bool AssemblyAttributes { get; set; }
 
-        [Option(longName: ParameterNames.ContainingNamespaceStyle,
-            HelpText = "Defines how containing namespace of a symbol is displayed. Allowed values are omitted, omitted-as-containing or included. Default value is omitted.",
-            MetaValue = "<CONTAINING-NAMESPACE-STYLE>")]
-        public string ContainingNamespaceStyle { get; set; }
-
         [Option(longName: ParameterNames.Depth,
             HelpText = "Defines a depth of a list. Allowed values are member, type or namespace. Default value is member.",
             MetaValue = "<DEPTH>")]
@@ -41,14 +36,19 @@ namespace Roslynator.CommandLine
             HelpText = "Indicates whether parameters should be formatted on a multiple lines.")]
         public bool FormatParameters { get; set; }
 
+        [Option(longName: "ignored-attribute-names",
+            HelpText = "Defines a list of attributes' names that should be ignored, i.e. if the symbol has an attribute with the specified name it will be ignored.",
+            MetaValue = "<FULLY_QUALIFIED_METADATA_NAME>")]
+        public IEnumerable<string> IgnoredAttributeNames { get; set; }
+
         [Option(longName: "ignored-names",
             HelpText = "Defines a list of metadata names that should be excluded from a documentation. Namespace of type names can be specified.",
             MetaValue = "<FULLY_QUALIFIED_METADATA_NAME>")]
         public IEnumerable<string> IgnoredNames { get; set; }
 
-        [Option(longName: "include-ienumerable",
-            HelpText = "Indicates whether interface System.Collections.IEnumerable should be included in a documentation if a type also implements interface System.Collections.Generic.IEnumerable<T>.")]
-        public bool IncludeIEnumerable { get; set; }
+        //[Option(longName: "include-ienumerable",
+        //    HelpText = "Indicates whether interface System.Collections.IEnumerable should be included in a documentation if a type also implements interface System.Collections.Generic.IEnumerable<T>.")]
+        //public bool IncludeIEnumerable { get; set; }
 
         [Option(longName: "indent-chars",
             Default = DefinitionListOptions.DefaultValues.IndentChars,
@@ -56,9 +56,9 @@ namespace Roslynator.CommandLine
             MetaValue = "<INDENT_CHARS>")]
         public string IndentChars { get; set; }
 
-        [Option(longName: "merge-attributes",
-            HelpText = "Indicates whether attributes should be displayed in a single attribute list.")]
-        public bool MergeAttributes { get; set; }
+        //[Option(longName: "merge-attributes",
+        //    HelpText = "Indicates whether attributes should be displayed in a single attribute list.")]
+        //public bool MergeAttributes { get; set; }
 
         [Option(longName: "nest-namespaces",
             HelpText = "Indicates whether namespaces should be nested.")]
@@ -68,13 +68,13 @@ namespace Roslynator.CommandLine
             HelpText = "Indicates whether attribute arguments should be omitted when displaying an attribute.")]
         public bool NoAttributeArguments { get; set; }
 
-        [Option(longName: "no-indent",
-            HelpText = "Indicates whether definitions should not be indented.")]
-        public bool NoIndent { get; set; }
+        //[Option(longName: "no-precedence-for-system",
+        //    HelpText = "Indicates whether symbols contained in 'System' namespace should be ordered as any other symbols and not before other symbols.")]
+        //public bool NoPrecedenceForSystem { get; set; }
 
-        [Option(longName: "no-precedence-for-system",
-            HelpText = "Indicates whether symbols contained in 'System' namespace should be ordered as any other symbols and not before other symbols.")]
-        public bool NoPrecedenceForSystem { get; set; }
+        [Option(longName: "omit-containing-namespace",
+            HelpText = "Indicates whether containing namespace should be omitted when displayed a symbol.")]
+        public bool OmitContainingNamespace { get; set; }
 
         [Option(longName: "output",
             HelpText = "Defines path to file that will store a list of symbol definitions.",
@@ -83,8 +83,8 @@ namespace Roslynator.CommandLine
 
         [Option(longName: ParameterNames.Visibility,
             Default = nameof(Roslynator.Visibility.Private),
-            HelpText = "Defines a visibility of a type or a member. Allowed values are public, internal or private. Default value is private.",
+            HelpText = "Defines one or more visibility of a type or a member. Allowed values are public, internal or private.",
             MetaValue = "<VISIBILITY>")]
-        public string Visibility { get; set; }
+        public IEnumerable<string> Visibility { get; set; }
     }
 }

@@ -1,7 +1,9 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -10,15 +12,17 @@ namespace Roslynator.Documentation
     //TODO: order by namespace, accessibility, typekind, memberkind, name
     internal class DefinitionListOptions
     {
-        private readonly ImmutableArray<MetadataName> _ignoredMetadataNames;
+        private static readonly ImmutableArray<Visibility> _allVisibilities = ImmutableArray.Create(Visibility.Public, Visibility.Internal, Visibility.Private);
+
+        private readonly VisibilityFlags _visibilityFlags;
 
         public DefinitionListOptions(
-            Visibility visibility = DefaultValues.Visibility,
+            ImmutableArray<Visibility> visibilities = default,
             DefinitionListDepth depth = DefaultValues.Depth,
-            SymbolDisplayContainingNamespaceStyle containingNamespaceStyle = DefaultValues.ContainingNamespaceStyle,
-            IEnumerable<string> ignoredNames = null,
-            bool indent = DefaultValues.Indent,
+            IEnumerable<MetadataName> ignoredNames = null,
+            IEnumerable<MetadataName> ignoredAttributeNames = null,
             string indentChars = DefaultValues.IndentChars,
+            bool omitContainingNamespace = DefaultValues.OmitContainingNamespace,
             bool placeSystemNamespaceFirst = DefaultValues.PlaceSystemNamespaceFirst,
             bool nestNamespaces = DefaultValues.NestNamespaces,
             bool emptyLineBetweenMembers = DefaultValues.EmptyLineBetweenMembers,
@@ -31,14 +35,13 @@ namespace Roslynator.Documentation
             bool useDefaultLiteral = DefaultValues.UseDefaultLiteral,
             bool assemblyAttributes = DefaultValues.AssemblyAttributes)
         {
-            _ignoredMetadataNames = ignoredNames?.Select(name => MetadataName.Parse(name)).ToImmutableArray() ?? ImmutableArray<MetadataName>.Empty;
+            Visibilities = (!visibilities.IsDefault) ? visibilities : _allVisibilities;
 
-            Visibility = visibility;
             Depth = depth;
-            ContainingNamespaceStyle = containingNamespaceStyle;
-            IgnoredNames = ignoredNames?.ToImmutableArray() ?? ImmutableArray<string>.Empty;
-            Indent = indent;
+            IgnoredNames = ignoredNames?.ToImmutableArray() ?? ImmutableArray<MetadataName>.Empty;
+            IgnoredAttributeNames = ignoredAttributeNames?.ToImmutableArray() ?? ImmutableArray<MetadataName>.Empty;
             IndentChars = indentChars;
+            OmitContainingNamespace = omitContainingNamespace;
             PlaceSystemNamespaceFirst = placeSystemNamespaceFirst;
             NestNamespaces = nestNamespaces;
             EmptyLineBetweenMembers = emptyLineBetweenMembers;
@@ -50,21 +53,47 @@ namespace Roslynator.Documentation
             OmitIEnumerable = omitIEnumerable;
             UseDefaultLiteral = useDefaultLiteral;
             AssemblyAttributes = assemblyAttributes;
+
+            foreach (Visibility visibility in Visibilities)
+            {
+                switch (visibility)
+                {
+                    case Visibility.Private:
+                        {
+                            _visibilityFlags |= VisibilityFlags.Private;
+                            break;
+                        }
+                    case Visibility.Internal:
+                        {
+                            _visibilityFlags |= VisibilityFlags.Internal;
+                            break;
+                        }
+                    case Visibility.Public:
+                        {
+                            _visibilityFlags |= VisibilityFlags.Public;
+                            break;
+                        }
+                    default:
+                        {
+                            throw new ArgumentException("", nameof(visibilities));
+                        }
+                }
+            }
         }
 
         public static DefinitionListOptions Default { get; } = new DefinitionListOptions();
 
-        public Visibility Visibility { get; }
+        public ImmutableArray<Visibility> Visibilities { get; }
 
         public DefinitionListDepth Depth { get; }
 
-        public SymbolDisplayContainingNamespaceStyle ContainingNamespaceStyle { get; }
+        public ImmutableArray<MetadataName> IgnoredNames { get; }
 
-        public ImmutableArray<string> IgnoredNames { get; }
-
-        public bool Indent { get; }
+        public ImmutableArray<MetadataName> IgnoredAttributeNames { get; }
 
         public string IndentChars { get; }
+
+        public bool OmitContainingNamespace { get; }
 
         public bool PlaceSystemNamespaceFirst { get; }
 
@@ -90,11 +119,48 @@ namespace Roslynator.Documentation
 
         internal bool ShouldBeIgnored(ISymbol symbol)
         {
-            foreach (MetadataName metadataName in _ignoredMetadataNames)
+            foreach (MetadataName metadataName in IgnoredNames)
             {
                 if (symbol.HasMetadataName(metadataName))
                     return true;
             }
+
+            return HasIgnoredAttribute(symbol);
+        }
+
+        internal bool HasIgnoredAttribute(ISymbol symbol)
+        {
+            if (symbol.Kind != SymbolKind.Namespace
+                && IgnoredAttributeNames.Any())
+            {
+                foreach (AttributeData attribute in symbol.GetAttributes())
+                {
+                    foreach (MetadataName attributeName in IgnoredAttributeNames)
+                    {
+                        if (attribute.AttributeClass.HasMetadataName(attributeName))
+                            return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsVisible(ISymbol symbol)
+        {
+            switch (symbol.GetVisibility())
+            {
+                case Visibility.NotApplicable:
+                    break;
+                case Visibility.Private:
+                    return (_visibilityFlags & VisibilityFlags.Private) != 0;
+                case Visibility.Internal:
+                    return (_visibilityFlags & VisibilityFlags.Internal) != 0;
+                case Visibility.Public:
+                    return (_visibilityFlags & VisibilityFlags.Public) != 0;
+            }
+
+            Debug.Fail(symbol.ToDisplayString());
 
             return false;
         }
@@ -103,9 +169,8 @@ namespace Roslynator.Documentation
         {
             public const Visibility Visibility = Roslynator.Visibility.Private;
             public const DefinitionListDepth Depth = DefinitionListDepth.Member;
-            public const SymbolDisplayContainingNamespaceStyle ContainingNamespaceStyle = SymbolDisplayContainingNamespaceStyle.Omitted;
-            public const bool Indent = true;
             public const string IndentChars = "  ";
+            public const bool OmitContainingNamespace = false;
             public const bool PlaceSystemNamespaceFirst = true;
             public const bool NestNamespaces = false;
             public const bool EmptyLineBetweenMembers = false;
