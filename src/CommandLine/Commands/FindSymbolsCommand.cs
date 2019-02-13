@@ -135,7 +135,7 @@ namespace Roslynator.CommandLine
                 WriteLine($"Done analyzing solution '{solution.FilePath}' in {stopwatch.Elapsed:mm\\:ss\\.ff}", Verbosity.Minimal);
             }
 
-            //TODO: Summary?
+            //TODO: add option --summary
             if (allSymbols.Any())
             {
                 Dictionary<SymbolSpecialKind, int> countByKind = allSymbols

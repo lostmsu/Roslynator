@@ -176,10 +176,10 @@ namespace Roslynator.CommandLine
             if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumFlags(options.SymbolKinds, ParameterNames.SymbolKinds, out SymbolSpecialKinds symbolKinds, SymbolFinderOptions.Default.SymbolKinds))
+            if (!TryParseOptionValueAsEnumFlags(options.SymbolKinds, ParameterNames.SymbolKinds, out SymbolSpecialKinds symbolKinds, SymbolFinderOptions.Default.SymbolKinds))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumValues(options.Visibility, ParameterNames.Visibility, out ImmutableArray<Visibility> visibilities, SymbolFinderOptions.Default.Visibilities))
+            if (!TryParseOptionValueAsEnumValues(options.Visibility, ParameterNames.Visibility, out ImmutableArray<Visibility> visibilities, SymbolFinderOptions.Default.Visibilities))
                 return 1;
 
             if (!TryParseMetadataNames(options.IgnoredAttributes, out ImmutableArray<MetadataName> ignoredAttributes))
@@ -202,10 +202,10 @@ namespace Roslynator.CommandLine
             if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
                 return 1;
 
-            if (!TryParseParameterValueAsEnum(options.Depth, ParameterNames.Depth, out DefinitionListDepth depth, DefinitionListOptions.Default.Depth))
+            if (!TryParseOptionValueAsEnum(options.Depth, ParameterNames.Depth, out DefinitionListDepth depth, DefinitionListOptions.Default.Depth))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumValues(options.Visibility, ParameterNames.Visibility, out ImmutableArray<Visibility> visibilities, DefinitionListOptions.Default.Visibilities))
+            if (!TryParseOptionValueAsEnumValues(options.Visibility, ParameterNames.Visibility, out ImmutableArray<Visibility> visibilities, DefinitionListOptions.Default.Visibilities))
                 return 1;
 
             if (!TryParseMetadataNames(options.IgnoredNames, out ImmutableArray<MetadataName> ignoredNames))
@@ -311,25 +311,25 @@ namespace Roslynator.CommandLine
                 return 1;
             }
 
-            if (!TryParseParameterValueAsEnum(options.Depth, ParameterNames.Depth, out DocumentationDepth depth, DocumentationOptions.Default.Depth))
+            if (!TryParseOptionValueAsEnum(options.Depth, ParameterNames.Depth, out DocumentationDepth depth, DocumentationOptions.Default.Depth))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumFlags(options.IgnoredRootParts, ParameterNames.IgnoredRootParts, out RootDocumentationParts ignoredRootParts, DocumentationOptions.Default.IgnoredRootParts))
+            if (!TryParseOptionValueAsEnumFlags(options.IgnoredRootParts, ParameterNames.IgnoredRootParts, out RootDocumentationParts ignoredRootParts, DocumentationOptions.Default.IgnoredRootParts))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumFlags(options.IgnoredNamespaceParts, ParameterNames.IgnoredNamespaceParts, out NamespaceDocumentationParts ignoredNamespaceParts, DocumentationOptions.Default.IgnoredNamespaceParts))
+            if (!TryParseOptionValueAsEnumFlags(options.IgnoredNamespaceParts, ParameterNames.IgnoredNamespaceParts, out NamespaceDocumentationParts ignoredNamespaceParts, DocumentationOptions.Default.IgnoredNamespaceParts))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumFlags(options.IgnoredTypeParts, ParameterNames.IgnoredTypeParts, out TypeDocumentationParts ignoredTypeParts, DocumentationOptions.Default.IgnoredTypeParts))
+            if (!TryParseOptionValueAsEnumFlags(options.IgnoredTypeParts, ParameterNames.IgnoredTypeParts, out TypeDocumentationParts ignoredTypeParts, DocumentationOptions.Default.IgnoredTypeParts))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumFlags(options.IgnoredMemberParts, ParameterNames.IgnoredMemberParts, out MemberDocumentationParts ignoredMemberParts, DocumentationOptions.Default.IgnoredMemberParts))
+            if (!TryParseOptionValueAsEnumFlags(options.IgnoredMemberParts, ParameterNames.IgnoredMemberParts, out MemberDocumentationParts ignoredMemberParts, DocumentationOptions.Default.IgnoredMemberParts))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumFlags(options.OmitContainingNamespaceParts, ParameterNames.OmitContainingNamespaceParts, out OmitContainingNamespaceParts omitContainingNamespaceParts, DocumentationOptions.Default.OmitContainingNamespaceParts))
+            if (!TryParseOptionValueAsEnumFlags(options.OmitContainingNamespaceParts, ParameterNames.OmitContainingNamespaceParts, out OmitContainingNamespaceParts omitContainingNamespaceParts, DocumentationOptions.Default.OmitContainingNamespaceParts))
                 return 1;
 
-            if (!TryParseParameterValueAsEnum(options.Visibility, ParameterNames.Visibility, out Visibility visibility))
+            if (!TryParseOptionValueAsEnum(options.Visibility, ParameterNames.Visibility, out Visibility visibility))
                 return 1;
 
             if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))
@@ -353,13 +353,13 @@ namespace Roslynator.CommandLine
 
         private static async Task<int> GenerateDocRootAsync(GenerateDocRootCommandLineOptions options)
         {
-            if (!TryParseParameterValueAsEnum(options.Visibility, ParameterNames.Visibility, out Visibility visibility))
+            if (!TryParseOptionValueAsEnum(options.Visibility, ParameterNames.Visibility, out Visibility visibility))
                 return 1;
 
-            if (!TryParseParameterValueAsEnum(options.Depth, ParameterNames.Depth, out DocumentationDepth depth, DocumentationOptions.Default.Depth))
+            if (!TryParseOptionValueAsEnum(options.Depth, ParameterNames.Depth, out DocumentationDepth depth, DocumentationOptions.Default.Depth))
                 return 1;
 
-            if (!TryParseParameterValueAsEnumFlags(options.IgnoredParts, ParameterNames.IgnoredRootParts, out RootDocumentationParts ignoredParts, DocumentationOptions.Default.IgnoredRootParts))
+            if (!TryParseOptionValueAsEnumFlags(options.IgnoredParts, ParameterNames.IgnoredRootParts, out RootDocumentationParts ignoredParts, DocumentationOptions.Default.IgnoredRootParts))
                 return 1;
 
             if (!options.TryGetProjectFilter(out ProjectFilter projectFilter))

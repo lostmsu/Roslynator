@@ -192,7 +192,7 @@ namespace Roslynator.CommandLine
                 }
                 catch (InvalidOperationException)
                 {
-                    WriteLine($"MSBuild location not found. Use option '{ParameterNames.MSBuildPath}' to specify MSBuild location", Verbosity.Quiet);
+                    WriteLine($"MSBuild location not found. Use option '--{ParameterNames.MSBuildPath}' to specify MSBuild location", Verbosity.Quiet);
                     return null;
                 }
 

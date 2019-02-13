@@ -80,7 +80,8 @@ namespace Roslynator.CommandLine
             WriteLine(Verbosity.Minimal);
             WriteLine(text, Verbosity.Minimal);
 
-            //TODO: Summary
+            //TODO: summary
+            //TODO: xml output
 
             if (Options.Output != null)
                 File.WriteAllText(Options.Output, text, Encoding.UTF8);

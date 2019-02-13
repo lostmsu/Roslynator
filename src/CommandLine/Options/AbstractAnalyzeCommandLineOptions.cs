@@ -39,7 +39,7 @@ namespace Roslynator.CommandLine
 
         internal bool TryParseDiagnosticSeverity(DiagnosticSeverity defaultValue, out DiagnosticSeverity value)
         {
-            return ParseHelpers.TryParseParameterValueAsEnum(SeverityLevel, ParameterNames.SeverityLevel, out value, defaultValue);
+            return ParseHelpers.TryParseOptionValueAsEnum(SeverityLevel, ParameterNames.SeverityLevel, out value, defaultValue);
         }
     }
 }

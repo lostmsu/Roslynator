@@ -167,6 +167,7 @@ namespace Roslynator.Documentation
 
         private void WriteAssembly(IAssemblySymbol assembly)
         {
+            Write("assembly ");
             WriteLine(assembly.Identity.ToString());
 
             if (Options.AssemblyAttributes)

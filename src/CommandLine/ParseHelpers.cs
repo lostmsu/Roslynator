@@ -72,9 +72,9 @@ namespace Roslynator.CommandLine
             return true;
         }
 
-        public static bool TryParseParameterValueAsEnumFlags<TEnum>(
+        public static bool TryParseOptionValueAsEnumFlags<TEnum>(
             IEnumerable<string> values,
-            string parameterName,
+            string optionName,
             out TEnum result,
             TEnum? defaultValue = null) where TEnum : struct
         {
@@ -94,7 +94,7 @@ namespace Roslynator.CommandLine
 
             foreach (string value in values)
             {
-                if (!TryParseParameterValueAsEnum(value, parameterName, out TEnum result2))
+                if (!TryParseOptionValueAsEnum(value, optionName, out TEnum result2))
                     return false;
 
                 flags |= (int)(object)result2;
@@ -105,9 +105,9 @@ namespace Roslynator.CommandLine
             return true;
         }
 
-        public static bool TryParseParameterValueAsEnumValues<TEnum>(
+        public static bool TryParseOptionValueAsEnumValues<TEnum>(
             IEnumerable<string> values,
-            string parameterName,
+            string optionName,
             out ImmutableArray<TEnum> result,
             ImmutableArray<TEnum> defaultValue = default) where TEnum : struct
         {
@@ -122,7 +122,7 @@ namespace Roslynator.CommandLine
 
             foreach (string value in values)
             {
-                if (!TryParseParameterValueAsEnum(value, parameterName, out TEnum result2))
+                if (!TryParseOptionValueAsEnum(value, optionName, out TEnum result2))
                     return false;
 
                 builder.Add(result2);
@@ -133,7 +133,7 @@ namespace Roslynator.CommandLine
             return true;
         }
 
-        public static bool TryParseParameterValueAsEnum<TEnum>(string value, string parameterName, out TEnum result, TEnum? defaultValue = null) where TEnum : struct
+        public static bool TryParseOptionValueAsEnum<TEnum>(string value, string optionName, out TEnum result, TEnum? defaultValue = null) where TEnum : struct
         {
             if (value == null
                 && defaultValue != null)
@@ -148,7 +148,7 @@ namespace Roslynator.CommandLine
                     .Cast<TEnum>()
                     .Select(f => _lowerLetterUpperLetterRegex.Replace(f.ToString(), e => e.Value.Insert(1, "-")).ToLowerInvariant());
 
-                WriteLine($"Parameter '{parameterName}' has unknown value '{value}'. Known values: {string.Join(", ", values)}.", Verbosity.Quiet);
+                WriteLine($"Option '--{optionName}' has unknown value '{value}'. Known values: {string.Join(", ", values)}.", Verbosity.Quiet);
                 return false;
             }
 
