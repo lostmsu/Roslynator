@@ -83,6 +83,33 @@ namespace Roslynator.CSharp
         }
         #endregion AccessorListSyntax
 
+        #region Attributes
+        /// <summary>
+        /// Filters a list of attributes
+        /// </summary>
+        public static SyntaxList<AttributeListSyntax> Where(
+            this SyntaxList<AttributeListSyntax> attributeLists,
+            Func<AttributeSyntax, bool> predicate)
+        {
+            if (predicate == null)
+                throw new ArgumentNullException(nameof(predicate));
+
+            SyntaxList<AttributeListSyntax> result = default;
+            foreach(AttributeListSyntax attributeList in attributeLists) {
+                SeparatedSyntaxList<AttributeSyntax> remainingAttributes = SeparatedList(
+                    attributeList.Attributes.Where(predicate));
+
+                if (remainingAttributes.Count == 0)
+                    continue;
+
+                AttributeListSyntax filteredList = attributeList.WithAttributes(remainingAttributes);
+                result = result.Add(filteredList);
+            }
+
+            return result;
+        }
+        #endregion Attributes
+
         #region BlockSyntax
         internal static StatementSyntax SingleNonBlockStatementOrDefault(this BlockSyntax body, bool recursive = false)
         {
