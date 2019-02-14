@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Rename;
+using Roslynator.CSharp.Refactorings.Interop;
 using Roslynator.CSharp.Refactorings.MakeMemberAbstract;
 using Roslynator.CSharp.Refactorings.MakeMemberVirtual;
 using Roslynator.CSharp.Refactorings.ReplaceMethodWithProperty;
@@ -76,6 +77,19 @@ namespace Roslynator.CSharp.Refactorings
                 SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 
                 AddMemberToInterfaceRefactoring.ComputeRefactoring(context, methodDeclaration, semanticModel);
+            }
+
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ReplaceDllImportWithRuntimeDelegates)
+                && ReplaceDllImportWithRuntimeDelegatesRefactoring.CanRefactor(methodDeclaration))
+            {
+                context.RegisterRefactoring(
+                    "Replace [DllImport] with runtime unmanaged function binding",
+                    cancellationToken => ReplaceDllImportWithRuntimeDelegatesRefactoring.RefactorAsync(context.Document, methodDeclaration, cancellationToken),
+                    RefactoringIdentifiers.ReplaceDllImportWithRuntimeDelegates);
+                context.RegisterRefactoring(
+                    "Replace all [DllImport] with runtime unmanaged function bindings in class",
+                    cancellationToken => ReplaceDllImportWithRuntimeDelegatesRefactoring.RefactorAllAsync(context.Document, methodDeclaration, cancellationToken),
+                    RefactoringIdentifiers.ReplaceDllImportWithRuntimeDelegatesInClass);
             }
         }
 

@@ -2140,4 +2140,64 @@ else
       </Sample>
     </Samples>
   </Refactoring>
+  <Refactoring Id="RR0212" Identifier="ReplaceDllImportWithRuntimeDelegates" Title="Replace [DllImport] with runtime unmanaged function binding">
+    <Syntaxes>
+      <Syntax>method</Syntax>
+    </Syntaxes>
+    <Span>method header</Span>
+    <Samples>
+      <Sample>
+        <Before>
+          <![CDATA[[DllImport("MyLib")]
+static extern void UnmanagedFunction();]]>
+        </Before>
+        <After>
+          <![CDATA[public static UnmanagedFunction { get ; }
+
+public static class Delegates
+{
+    static Delegates() {
+        UnmanagedFunction = Marshal.GetDelegateForFunctionPointer<UnmanagedFunction>(GetFunctionByName("UnmanagedFunction", GetUnmanagedDll("MyLib")));
+    }
+
+    [UnmanagedFunctionPointer]
+    public delegate void UnmanagedFunction();
+    
+    static IntPtr GetFunctionByName(string functionName, IntPtr libraryHandle) => ...;
+    static IntPtr GetUnmanagedDll(string libraryName) => ...;
+}]]>
+        </After>
+      </Sample>
+    </Samples>
+  </Refactoring>
+  <Refactoring Id="RR0213" Identifier="ReplaceDllImportWithRuntimeDelegates" Title="Replace [DllImport] with runtime unmanaged function binding">
+    <Syntaxes>
+      <Syntax>method</Syntax>
+    </Syntaxes>
+    <Span>method header</Span>
+    <Samples>
+      <Sample>
+        <Before>
+          <![CDATA[[DllImport("MyLib")]
+static extern void UnmanagedFunction();]]>
+        </Before>
+        <After>
+          <![CDATA[public static UnmanagedFunction { get ; }
+
+public static class Delegates
+{
+    static Delegates() {
+        UnmanagedFunction = Marshal.GetDelegateForFunctionPointer<UnmanagedFunction>(GetFunctionByName("UnmanagedFunction", GetUnmanagedDll("MyLib")));
+    }
+
+    [UnmanagedFunctionPointer]
+    public delegate void UnmanagedFunction();
+    
+    static IntPtr GetFunctionByName(string functionName, IntPtr libraryHandle) => ...;
+    static IntPtr GetUnmanagedDll(string libraryName) => ...;
+}]]>
+        </After>
+      </Sample>
+    </Samples>
+  </Refactoring>
 </Refactorings>

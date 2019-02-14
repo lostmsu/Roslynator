@@ -235,6 +235,8 @@ namespace Roslynator.VisualStudio
             refactorings.Add(new BaseModel(RefactoringIdentifiers.RemoveAsyncAwait, "Remove async/await", IsEnabled(RefactoringIdentifiers.RemoveAsyncAwait)));
             refactorings.Add(new BaseModel(RefactoringIdentifiers.ImplementCustomEnumerator, "Implement custom enumerator", IsEnabled(RefactoringIdentifiers.ImplementCustomEnumerator)));
             refactorings.Add(new BaseModel(RefactoringIdentifiers.ConvertStatementsToIfElse, "Convert statements to if-else", IsEnabled(RefactoringIdentifiers.ConvertStatementsToIfElse)));
+            refactorings.Add(new BaseModel(RefactoringIdentifiers.ReplaceDllImportWithRuntimeDelegates, "Replace [DllImport] with runtime unmanaged function binding", IsEnabled(RefactoringIdentifiers.ReplaceDllImportWithRuntimeDelegates)));
+            refactorings.Add(new BaseModel(RefactoringIdentifiers.ReplaceDllImportWithRuntimeDelegatesInClass, "Replace all [DllImport] with runtime unmanaged function bindings in class", IsEnabled(RefactoringIdentifiers.ReplaceDllImportWithRuntimeDelegatesInClass)));
         }
     }
 }

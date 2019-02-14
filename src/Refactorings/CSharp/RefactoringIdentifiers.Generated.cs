@@ -148,6 +148,8 @@ namespace Roslynator.CSharp.Refactorings
         public const string ReplaceConditionalExpressionWithIfElse = Prefix + "0120";
         public const string ReplaceConstantWithField = Prefix + "0121";
         public const string ReplaceDoWithWhile = Prefix + "0123";
+        public const string ReplaceDllImportWithRuntimeDelegates = Prefix + "0212";
+        public const string ReplaceDllImportWithRuntimeDelegatesInClass = Prefix + "0213";
         public const string ReplaceEqualsExpressionWithStringEquals = Prefix + "0124";
         public const string ReplaceEqualsExpressionWithStringIsNullOrEmpty = Prefix + "0125";
         public const string ReplaceEqualsExpressionWithStringIsNullOrWhiteSpace = Prefix + "0126";
