@@ -1,6 +1,10 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+using static Roslynator.CSharp.CSharpFactory;
 
 namespace Roslynator.CSharp
 {
@@ -92,6 +96,25 @@ namespace Roslynator.CSharp
                 || kind == kind4
                 || kind == kind5
                 || kind == kind6;
+        }
+
+        public static bool IsVisibility(this SyntaxKind kind)
+            => Is(kind, SyntaxKind.PrivateKeyword, SyntaxKind.ProtectedKeyword, SyntaxKind.InternalKeyword, SyntaxKind.PublicKeyword);
+
+        public static SyntaxToken GetToken(this Visibility visibility) {
+            switch (visibility)
+            {
+            case Visibility.NotApplicable:
+                throw new ArgumentException($"Can't get token for {Visibility.NotApplicable}. Use TryGetToken.", paramName: nameof(visibility));
+            case Visibility.Private:
+                return Token(SyntaxKind.PrivateKeyword);
+            case Visibility.Internal:
+                return Token(SyntaxKind.InternalKeyword);
+            case Visibility.Public:
+                return Token(SyntaxKind.PublicKeyword);
+            default:
+                throw new ArgumentException("Unknown visibility value", nameof(visibility));
+            }
         }
     }
 }

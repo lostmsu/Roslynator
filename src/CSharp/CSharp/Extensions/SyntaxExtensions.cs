@@ -89,20 +89,28 @@ namespace Roslynator.CSharp
         /// </summary>
         public static SyntaxList<AttributeListSyntax> Where(
             this SyntaxList<AttributeListSyntax> attributeLists,
-            Func<AttributeSyntax, bool> predicate)
+            Func<AttributeSyntax, bool> predicate,
+            out SyntaxTriviaList leftoverTrivia)
         {
             if (predicate == null)
                 throw new ArgumentNullException(nameof(predicate));
 
             SyntaxList<AttributeListSyntax> result = default;
+            leftoverTrivia = default;
             foreach(AttributeListSyntax attributeList in attributeLists) {
                 SeparatedSyntaxList<AttributeSyntax> remainingAttributes = SeparatedList(
                     attributeList.Attributes.Where(predicate));
 
                 if (remainingAttributes.Count == 0)
+                {
+                    leftoverTrivia = leftoverTrivia.AddRange(attributeList.GetLeadingAndTrailingTrivia());
                     continue;
+                }
 
-                AttributeListSyntax filteredList = attributeList.WithAttributes(remainingAttributes);
+                AttributeListSyntax filteredList = (remainingAttributes.Count == attributeList.Attributes.Count)
+                    ? attributeList // preserve reference equality
+                    : attributeList.WithAttributes(remainingAttributes);
+                filteredList = filteredList.PrependToLeadingTrivia(leftoverTrivia);
                 result = result.Add(filteredList);
             }
 
@@ -1533,6 +1541,16 @@ namespace Roslynator.CSharp
             return parameter?.Modifiers.Contains(SyntaxKind.ParamsKeyword) == true;
         }
         #endregion ParameterSyntax
+
+        #region ParameterListSyntax
+        public static ArgumentListSyntax PassAsArguments(this ParameterListSyntax parameters)
+        {
+            return ArgumentList(SeparatedList(parameters.Parameters.Select(parameter => Argument(
+                nameColon: null,
+                refKindKeyword: parameter.Modifiers.FirstOrDefault(m => m.IsRefKeyword()),
+                expression: IdentifierName(parameter.Identifier)))));
+        }
+        #endregion ParameterListSyntax
 
         #region PropertyDeclarationSyntax
         internal static TextSpan HeaderSpan(this PropertyDeclarationSyntax propertyDeclaration)
@@ -3641,6 +3659,28 @@ namespace Roslynator.CSharp
         {
             return IsKind(token.Parent, kind1, kind2, kind3, kind4, kind5, kind6);
         }
+
+        public static bool IsVisibility(this SyntaxToken token) => token.Kind().IsVisibility();
+
+        public static bool IsRefKeyword(this SyntaxToken token) => token.Kind().Is(SyntaxKind.RefKeyword, SyntaxKind.OutKeyword);
+
+        /// <summary>
+        /// Attemps to convert this token into <see cref="Visibility"/>
+        /// </summary>
+        public static Visibility AsVisibility(this SyntaxToken token)
+        {
+            switch (token.Kind())
+            {
+            case SyntaxKind.PublicKeyword:
+                return Visibility.Public;
+            case SyntaxKind.InternalKeyword:
+                return Visibility.Internal;
+            case SyntaxKind.PrivateKeyword:
+                return Visibility.Private;
+            default:
+                return Visibility.NotApplicable;
+            }
+        }
         #endregion SyntaxToken
 
         #region SyntaxTokenList
@@ -3660,6 +3700,9 @@ namespace Roslynator.CSharp
 
             return default(SyntaxToken);
         }
+
+        public static SyntaxTokenList RemoveFirstUnchecked(this SyntaxTokenList tokenList, SyntaxKind kind)
+            => tokenList.Remove(tokenList.First(m => m.Kind() == kind));
 
         internal static SyntaxTokenList Replace(this SyntaxTokenList tokens, SyntaxKind kind, SyntaxKind newKind)
         {
@@ -3747,6 +3790,60 @@ namespace Roslynator.CSharp
 
                 while (en.MoveNext())
                     yield return en.Current;
+            }
+        }
+
+        /// <summary>
+        /// Extends visibility to the specified value
+        /// </summary>
+        public static SyntaxTokenList ExtendVisibility(this SyntaxTokenList modifiers, SyntaxKind minimumVisibility)
+        {
+            if (!minimumVisibility.IsVisibility())
+                throw new ArgumentException("Parameter must be a kind of visibility", nameof(minimumVisibility));
+
+            if (minimumVisibility == SyntaxKind.PrivateKeyword)
+                return modifiers;
+
+            SyntaxTokenList currentVisibility = TokenList(modifiers.Where(t => t.Kind().IsVisibility()));
+            if (currentVisibility.Count == 0)
+                return modifiers.Insert(0, Token(minimumVisibility));
+
+            switch (minimumVisibility)
+            {
+            case SyntaxKind.InternalKeyword:
+            {
+                if (currentVisibility.Any(SyntaxKind.InternalKeyword) || currentVisibility.Any(SyntaxKind.PublicKeyword))
+                    return modifiers;
+
+                SyntaxToken @private = currentVisibility.FirstOrDefault(t => t.Kind() == SyntaxKind.PrivateKeyword);
+                return (@private == default)
+                    ? modifiers.Insert(0, Token(minimumVisibility))
+                    : modifiers.Replace(SyntaxKind.PrivateKeyword, SyntaxKind.InternalKeyword);
+            }
+
+            case SyntaxKind.ProtectedKeyword:
+            {
+                if (currentVisibility.Any(SyntaxKind.ProtectedKeyword) || currentVisibility.Any(SyntaxKind.PublicKeyword))
+                    return modifiers;
+
+                SyntaxToken  @private = currentVisibility.FirstOrDefault(t => t.Kind() == SyntaxKind.PrivateKeyword);
+                return (@private == default)
+                    ? modifiers.Insert(0, Token(minimumVisibility))
+                    : modifiers.Replace(SyntaxKind.PrivateKeyword, SyntaxKind.ProtectedKeyword);
+            }
+
+            case SyntaxKind.PublicKeyword:
+            {
+                if (currentVisibility.Any(SyntaxKind.PublicKeyword))
+                    return modifiers;
+
+                return (modifiers.Count == currentVisibility.Count)
+                    ? Modifiers.Public()
+                    : TokenList(modifiers.Where(m => !m.IsVisibility())).Insert(0, Token(minimumVisibility));
+            }
+
+            default:
+                throw new NotSupportedException($"Unsupported visibility: {minimumVisibility}");
             }
         }
         #endregion SyntaxTokenList

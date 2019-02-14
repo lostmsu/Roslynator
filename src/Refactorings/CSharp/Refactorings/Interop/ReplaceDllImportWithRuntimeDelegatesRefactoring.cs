@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -26,7 +27,7 @@ namespace Roslynator.CSharp.Refactorings.Interop {
         private static readonly BlockSyntax _notImplementedBlock = Block(ThrowNewStatement(CSharpTypeFactory.NotImplementedException()));
 
         private static readonly ClassDeclarationSyntax _emptyDelegateContainer =
-            ClassDeclaration(Modifiers.Public_Static(),
+            ClassDeclaration(Modifiers.Private_Static(),
                 _delegatesClassIdentifier.Identifier,
                 members: List(new MemberDeclarationSyntax[] {
                     ConstructorDeclaration(_delegatesClassIdentifier.Identifier)
@@ -51,13 +52,15 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                     ),
                 }));
 
-        public static bool CanRefactor(MethodDeclarationSyntax methodDeclaration) {
+        public static bool CanRefactor(MethodDeclarationSyntax methodDeclaration)
+        {
             return methodDeclaration.Modifiers.Any(SyntaxKind.ExternKeyword)
                 && (methodDeclaration.Parent is ClassDeclarationSyntax
                  || methodDeclaration.Parent is StructDeclarationSyntax);
         }
 
-        private struct Refactoring {
+        private class Refactoring
+        {
             private CancellationToken _cancellationToken;
             private Document _document;
             private SyntaxNode _root;
@@ -65,10 +68,13 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             private TypeDeclarationSyntax _newParent;
             private TypeDeclarationSyntax _existingDelegateContainer;
             private TypeDeclarationSyntax _newDelegateContainer;
-            private ConstructorDeclarationSyntax _delegateContainerConstructor;
+            private ConstructorDeclarationSyntax _initialContainerConstructor;
+            private ConstructorDeclarationSyntax _newContainerConstructor;
+            private readonly Dictionary<MemberDeclarationSyntax, MemberDeclarationSyntax> _replacements = new Dictionary<MemberDeclarationSyntax, MemberDeclarationSyntax>();
             public TypeDeclarationSyntax OriginalParent { get; private set; }
 
-            public async Task<bool> Prepare(MethodDeclarationSyntax method, Document document, CancellationToken cancellationToken) {
+            public async Task<bool> Prepare(MethodDeclarationSyntax method, Document document, CancellationToken cancellationToken)
+            {
                 if (this._root != null)
                     throw new InvalidOperationException();
 
@@ -83,34 +89,50 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                     .FirstOrDefault(t => t.Identifier.Text == _delegatesClassIdentifier.Identifier.Text);
                 this._newDelegateContainer = this._existingDelegateContainer ?? _emptyDelegateContainer;
 
-                this._delegateContainerConstructor = this._newDelegateContainer.Members
+                this._initialContainerConstructor = this._newDelegateContainer.Members
                     .OfType<ConstructorDeclarationSyntax>()
                     .FirstOrDefault(ctor => ctor.Modifiers.Any(SyntaxKind.StaticKeyword));
+                this._newContainerConstructor = this._initialContainerConstructor;
 
-                return this._delegateContainerConstructor?.Body != null;
+                return this._initialContainerConstructor?.Body != null;
             }
 
-            public async Task<bool> AddMethod(MethodDeclarationSyntax method) {
+            public async Task<bool> AddMethod(MethodDeclarationSyntax method)
+            {
                 DelegateProperty? delegateProperty = await ConvertToPropertyAsync(method, this._semanticModel, this._cancellationToken).ConfigureAwait(false);
                 if (delegateProperty == null)
                     return false;
 
-                ConstructorDeclarationSyntax updatedConstructor = this._delegateContainerConstructor
+                this._newContainerConstructor = this._newContainerConstructor
                     .AddBodyStatements(delegateProperty.Value.Initializer);
-                this._newDelegateContainer = this._newDelegateContainer.ReplaceNode(this._delegateContainerConstructor, updatedConstructor);
-                this._delegateContainerConstructor = updatedConstructor;
                 this._newDelegateContainer = this._newDelegateContainer.WithMembers(this._newDelegateContainer.Members
+                    .Add(delegateProperty.Value.Property)
                     .Add(delegateProperty.Value.DelegateType));
 
-                this._newParent = this._newParent.ReplaceNode(method, delegateProperty.Value.Property);
+                this._replacements[method] = delegateProperty.Value.Method;
 
                 return true;
             }
 
-            public Solution Complete() {
+            public Solution Complete()
+            {
+                if (this._newContainerConstructor != this._initialContainerConstructor)
+                {
+                    // reacquire initial constructor
+                    this._initialContainerConstructor = this._newDelegateContainer.Members
+                        .OfType<ConstructorDeclarationSyntax>()
+                        .First(ctor => ctor.Modifiers.Any(SyntaxKind.StaticKeyword));
+                    this._newDelegateContainer = this._newDelegateContainer
+                       .ReplaceNode(this._initialContainerConstructor, this._newContainerConstructor);
+                }
+
+                if (this._existingDelegateContainer != null)
+                    this._replacements[this._existingDelegateContainer] = this._newDelegateContainer;
+
+                this._newParent = this._newParent.ReplaceNodes(this._replacements.Keys, (orig, _) => this._replacements[orig]);
                 this._newParent = (this._existingDelegateContainer == null)
                     ? this._newParent.WithMembers(this._newParent.Members.Add(this._newDelegateContainer))
-                    : this._newParent.ReplaceNode(this._existingDelegateContainer, this._newDelegateContainer);
+                    : this._newParent;
 
                 SyntaxNode newRoot = this._root.ReplaceNode(this.OriginalParent, this._newParent);
                 Solution solution = this._document.Solution();
@@ -136,7 +158,8 @@ namespace Roslynator.CSharp.Refactorings.Interop {
         public static async Task<Solution> RefactorAllAsync(
             Document document,
             MethodDeclarationSyntax method,
-            CancellationToken cancellationToken = default) {
+            CancellationToken cancellationToken = default)
+        {
             var refacotring = new Refactoring();
             if (!await refacotring.Prepare(method, document, cancellationToken).ConfigureAwait(false))
                 return document.Solution();
@@ -161,7 +184,8 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             if (dllImport == null
                 || dllImport.NamedArguments.Any(arg => arg.Key != nameof(DllImportAttribute.CallingConvention)
                                                     && arg.Key != nameof(DllImportAttribute.EntryPoint))
-                || dllImport.ConstructorArguments.Length != 1) {
+                || dllImport.ConstructorArguments.Length != 1)
+            {
                 return null;
             }
 
@@ -174,17 +198,31 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                 ? (AttributeSyntax)await suppressSecurity.ApplicationSyntaxReference.GetSyntaxAsync(cancellationToken).ConfigureAwait(false)
                 : null;
 
-            return new DelegateProperty() {
+            SyntaxTokenList modifiers = method.Modifiers.RemoveFirstUnchecked(SyntaxKind.ExternKeyword);
+            SyntaxList<AttributeListSyntax> attributeLists = method.AttributeLists
+                .Where(a => !ReferenceEquals(a, dllImportNode) && !ReferenceEquals(a, suppressSecurityNode),
+                       out SyntaxTriviaList leftoverTrivia);
+
+            return new DelegateProperty()
+            {
                 DelegateType = MakeDelegateType(method, dllImportNode, suppressSecurityNode),
                 Initializer = MakeInitializer(method, dllImportNode),
+                Method = method
+                    .WithAttributeLists(attributeLists)
+                    .WithExpressionBody(ArrowExpressionClause(
+                        InvocationExpression(
+                            QualifiedDelegatePropertyName(method.Identifier),
+                            method.ParameterList.PassAsArguments())))
+                    .WithModifiers(modifiers)
+                    .PrependToLeadingTrivia(leftoverTrivia),
                 Property = PropertyDeclaration(
-                attributeLists: method.AttributeLists.Where(a => !ReferenceEquals(a, dllImportNode)
-                                                              && !ReferenceEquals(a, suppressSecurityNode)),
-                modifiers: method.Modifiers,
-                type: DelegateType(method.Identifier),
-                explicitInterfaceSpecifier: default,
-                identifier: method.Identifier,
-                accessorList: AccessorList(AutoGetAccessorDeclaration()))
+                    attributeLists: default,
+                    modifiers: Modifiers.Internal_Static(),
+                    type: DelegateType(method.Identifier),
+                    explicitInterfaceSpecifier: default,
+                    identifier: method.Identifier,
+                    accessorList: AccessorList(AutoGetAccessorDeclaration())
+                ),
             };
         }
 
@@ -207,7 +245,7 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                 Argument(functionPointer));
 
             return SimpleAssignmentStatement(
-                IdentifierName(method.Identifier),
+                DelegatePropertyName(method.Identifier),
                 delegateForFunctionPointer);
         }
 
@@ -217,7 +255,7 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             AttributeSyntax suppressSecurityNode)
         {
             ExpressionSyntax callingConvention = dllImportNode.ArgumentList.Arguments
-                .FirstOrDefault(arg => arg.NameEquals.Name.Identifier.Text == nameof(DllImportAttribute.CallingConvention))
+                .FirstOrDefault(arg => arg.NameEquals?.Name.Identifier.Text == nameof(DllImportAttribute.CallingConvention))
                 ?.Expression ?? _defaultCallingConvention;
             AttributeListSyntax unmanagedPointerAttribute = AttributeList(Attribute(_functionPointerFullName, AttributeArgument(callingConvention)));
             SyntaxList<AttributeListSyntax> attributes = SingletonList(unmanagedPointerAttribute);
@@ -229,17 +267,26 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                 attributes,
                 Modifiers.Public(),
                 method.ReturnType,
-                method.Identifier,
+                DelegateTypeName(method.Identifier).Identifier,
                 typeParameterList: default,
                 parameterList: method.ParameterList,
                 constraintClauses: default
             );
         }
 
-        private static TypeSyntax DelegateType(SyntaxToken methodIdentifier) =>
-            QualifiedName(_delegatesClassIdentifier, IdentifierName(methodIdentifier));
+        private static TypeSyntax QualifiedDelegatePropertyName(in SyntaxToken methodIdentifier)
+            => QualifiedName(_delegatesClassIdentifier, DelegatePropertyName(methodIdentifier));
 
-        private struct DelegateProperty {
+        private static IdentifierNameSyntax DelegatePropertyName(in SyntaxToken methodIdentifier) => IdentifierName(methodIdentifier);
+        private static TypeSyntax DelegateType(in SyntaxToken methodIdentifier)
+            => DelegateTypeName(methodIdentifier);
+
+        private static IdentifierNameSyntax DelegateTypeName(in SyntaxToken methodIdentifier)
+            => IdentifierName(methodIdentifier.Text + "Delegate");
+
+        private struct DelegateProperty
+        {
+            public MethodDeclarationSyntax Method { get; set; }
             public PropertyDeclarationSyntax Property { get; set; }
             public DelegateDeclarationSyntax DelegateType { get; set; }
             public StatementSyntax Initializer { get; set; }
