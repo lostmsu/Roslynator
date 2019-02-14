@@ -57,44 +57,97 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                  || methodDeclaration.Parent is StructDeclarationSyntax);
         }
 
+        private struct Refactoring {
+            private CancellationToken _cancellationToken;
+            private Document _document;
+            private SyntaxNode _root;
+            private SemanticModel _semanticModel;
+            private TypeDeclarationSyntax _newParent;
+            private TypeDeclarationSyntax _existingDelegateContainer;
+            private TypeDeclarationSyntax _newDelegateContainer;
+            private ConstructorDeclarationSyntax _delegateContainerConstructor;
+            public TypeDeclarationSyntax OriginalParent { get; private set; }
+
+            public async Task<bool> Prepare(MethodDeclarationSyntax method, Document document, CancellationToken cancellationToken) {
+                if (this._root != null)
+                    throw new InvalidOperationException();
+
+                this._cancellationToken = cancellationToken;
+                this._document = document;
+                this._root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+                this._semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+
+                this.OriginalParent = method.Parent as TypeDeclarationSyntax;
+                this._newParent = this.OriginalParent;
+                this._existingDelegateContainer = this.OriginalParent.Members.OfType<TypeDeclarationSyntax>()
+                    .FirstOrDefault(t => t.Identifier.Text == _delegatesClassIdentifier.Identifier.Text);
+                this._newDelegateContainer = this._existingDelegateContainer ?? _emptyDelegateContainer;
+
+                this._delegateContainerConstructor = this._newDelegateContainer.Members
+                    .OfType<ConstructorDeclarationSyntax>()
+                    .FirstOrDefault(ctor => ctor.Modifiers.Any(SyntaxKind.StaticKeyword));
+
+                return this._delegateContainerConstructor?.Body != null;
+            }
+
+            public async Task<bool> AddMethod(MethodDeclarationSyntax method) {
+                DelegateProperty? delegateProperty = await ConvertToPropertyAsync(method, this._semanticModel, this._cancellationToken).ConfigureAwait(false);
+                if (delegateProperty == null)
+                    return false;
+
+                ConstructorDeclarationSyntax updatedConstructor = this._delegateContainerConstructor
+                    .AddBodyStatements(delegateProperty.Value.Initializer);
+                this._newDelegateContainer = this._newDelegateContainer.ReplaceNode(this._delegateContainerConstructor, updatedConstructor);
+                this._delegateContainerConstructor = updatedConstructor;
+                this._newDelegateContainer = this._newDelegateContainer.WithMembers(this._newDelegateContainer.Members
+                    .Add(delegateProperty.Value.DelegateType));
+
+                this._newParent = this._newParent.ReplaceNode(method, delegateProperty.Value.Property);
+
+                return true;
+            }
+
+            public Solution Complete() {
+                this._newParent = (this._existingDelegateContainer == null)
+                    ? this._newParent.WithMembers(this._newParent.Members.Add(this._newDelegateContainer))
+                    : this._newParent.ReplaceNode(this._existingDelegateContainer, this._newDelegateContainer);
+
+                SyntaxNode newRoot = this._root.ReplaceNode(this.OriginalParent, this._newParent);
+                Solution solution = this._document.Solution();
+                return solution.WithDocumentSyntaxRoot(this._document.Id, newRoot);
+            }
+        }
+
         public static async Task<Solution> RefactorAsync(
             Document document,
             MethodDeclarationSyntax method,
             CancellationToken cancellationToken = default)
         {
-            SyntaxNode root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-            SemanticModel semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
-            DelegateProperty? delegateProperty = await ConvertToPropertyAsync(method, semanticModel, cancellationToken).ConfigureAwait(false);
-            if (delegateProperty == null)
+            var refacotring = new Refactoring();
+            if (!await refacotring.Prepare(method, document, cancellationToken).ConfigureAwait(false))
                 return document.Solution();
 
-            var parent = method.Parent as TypeDeclarationSyntax;
-            TypeDeclarationSyntax existingDelegateContainer = parent.Members.OfType<TypeDeclarationSyntax>()
-                .FirstOrDefault(t => t.Identifier.Text == _delegatesClassIdentifier.Identifier.Text);
-            TypeDeclarationSyntax newDelegateContainer = existingDelegateContainer;
-            if (existingDelegateContainer == null) {
-                newDelegateContainer = _emptyDelegateContainer;
+            if (!await refacotring.AddMethod(method).ConfigureAwait(false))
+                return document.Solution();
+
+            return refacotring.Complete();
+        }
+
+        public static async Task<Solution> RefactorAllAsync(
+            Document document,
+            MethodDeclarationSyntax method,
+            CancellationToken cancellationToken = default) {
+            var refacotring = new Refactoring();
+            if (!await refacotring.Prepare(method, document, cancellationToken).ConfigureAwait(false))
+                return document.Solution();
+
+            foreach (MethodDeclarationSyntax externMethod in refacotring.OriginalParent.Members
+                .OfType<MethodDeclarationSyntax>().Where(m => m.Modifiers.Any(SyntaxKind.ExternKeyword)))
+            {
+                await refacotring.AddMethod(externMethod).ConfigureAwait(false);
             }
 
-            ConstructorDeclarationSyntax delegateContainerConstructor = newDelegateContainer.Members
-                .OfType<ConstructorDeclarationSyntax>()
-                .FirstOrDefault(ctor => ctor.Modifiers.Any(SyntaxKind.StaticKeyword));
-
-            if (delegateContainerConstructor == null || delegateContainerConstructor.Body == null)
-                return document.Solution();
-
-            newDelegateContainer = newDelegateContainer.ReplaceNode(delegateContainerConstructor, delegateContainerConstructor
-                .AddBodyStatements(delegateProperty.Value.Initializer));
-            newDelegateContainer = newDelegateContainer.WithMembers(newDelegateContainer.Members
-                .Add(delegateProperty.Value.DelegateType));
-
-            TypeDeclarationSyntax newParent = parent.ReplaceNode(method, delegateProperty.Value.Property);
-            newParent = (existingDelegateContainer == null)
-                ? newParent.WithMembers(newParent.Members.Add(newDelegateContainer))
-                : newParent.ReplaceNode(existingDelegateContainer, newDelegateContainer);
-            SyntaxNode newRoot = root.ReplaceNode(parent, newParent);
-            Solution solution = document.Solution();
-            return solution.WithDocumentSyntaxRoot(document.Id, newRoot);
+            return refacotring.Complete();
         }
 
         private static async Task<DelegateProperty?> ConvertToPropertyAsync(
@@ -106,7 +159,8 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             INamedTypeSymbol dllImportSymbol = semanticModel.GetTypeByMetadataName(_dllImportFullName);
             AttributeData dllImport = methodSymbol.GetAttribute(dllImportSymbol);
             if (dllImport == null
-                || dllImport.NamedArguments.Any(arg => arg.Key != nameof(DllImportAttribute.CallingConvention))
+                || dllImport.NamedArguments.Any(arg => arg.Key != nameof(DllImportAttribute.CallingConvention)
+                                                    && arg.Key != nameof(DllImportAttribute.EntryPoint))
                 || dllImport.ConstructorArguments.Length != 1) {
                 return null;
             }
@@ -141,7 +195,12 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             ExpressionSyntax dllName = dllImportNode.ArgumentList.Arguments.Single(a => a.NameEquals == null).Expression;
             TypeSyntax delegateType = DelegateType(method.Identifier);
             InvocationExpressionSyntax libraryHandle = InvocationExpression(_getUnmanagedDll, ArgumentList(Argument(dllName)));
-            ExpressionSyntax functionPointer = InvocationExpression(_getFunctionByName, ArgumentList(Argument(libraryHandle)));
+            ExpressionSyntax functionName = dllImportNode.ArgumentList.Arguments
+                .SingleOrDefault(a => a.NameEquals?.Name.Identifier.Text == nameof(DllImportAttribute.EntryPoint))
+                ?.Expression ?? NameOfExpression(IdentifierName(method.Identifier));
+            ExpressionSyntax functionPointer = InvocationExpression(_getFunctionByName, ArgumentList(
+                    Argument(functionName),
+                    Argument(libraryHandle)));
             InvocationExpressionSyntax delegateForFunctionPointer = SimpleMemberInvocationExpression(
                 _marshal,
                 GenericName(nameof(Marshal.GetDelegateForFunctionPointer), delegateType),
