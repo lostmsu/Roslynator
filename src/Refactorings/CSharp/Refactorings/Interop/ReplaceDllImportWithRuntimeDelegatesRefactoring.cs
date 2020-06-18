@@ -183,7 +183,8 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             AttributeData dllImport = methodSymbol.GetAttribute(dllImportSymbol);
             if (dllImport == null
                 || dllImport.NamedArguments.Any(arg => arg.Key != nameof(DllImportAttribute.CallingConvention)
-                                                    && arg.Key != nameof(DllImportAttribute.EntryPoint))
+                                                    && arg.Key != nameof(DllImportAttribute.EntryPoint)
+                                                    && arg.Key != nameof(DllImportAttribute.CharSet))
                 || dllImport.ConstructorArguments.Length != 1)
             {
                 return null;
@@ -257,9 +258,21 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             ExpressionSyntax callingConvention = dllImportNode.ArgumentList.Arguments
                 .FirstOrDefault(arg => arg.NameEquals?.Name.Identifier.Text == nameof(DllImportAttribute.CallingConvention))
                 ?.Expression ?? _defaultCallingConvention;
-            AttributeListSyntax unmanagedPointerAttribute = AttributeList(Attribute(_functionPointerFullName, AttributeArgument(callingConvention)));
-            SyntaxList<AttributeListSyntax> attributes = SingletonList(unmanagedPointerAttribute);
+            var unmanagedPointerAttribute = Attribute(_functionPointerFullName, AttributeArgument(callingConvention));
 
+            foreach (var argument in dllImportNode.ArgumentList.Arguments) {
+                string name = argument.NameEquals?.Name.Identifier.ValueText;
+                switch (name) {
+                case nameof(DllImportAttribute.CallingConvention):
+                case null:
+                    break;
+                default:
+                    unmanagedPointerAttribute = unmanagedPointerAttribute.AddArgumentListArguments(argument);
+                    break;
+                }
+            }
+
+            SyntaxList<AttributeListSyntax> attributes = SingletonList(AttributeList(unmanagedPointerAttribute));
             if (suppressSecurityNode != null)
                 attributes = attributes.Add(AttributeList(suppressSecurityNode));
 
