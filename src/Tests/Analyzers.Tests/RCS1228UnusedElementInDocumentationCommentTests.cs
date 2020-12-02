@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1228UnusedElementInDocumentationCommentTests : AbstractCSharpCodeFixVerifier
+    public class RCS1228UnusedElementInDocumentationCommentTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.UnusedElementInDocumentationComment;
 
@@ -109,25 +109,6 @@ class C
     void M()
     {
     }
-}
-");
-        }
-
-        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UnusedElementInDocumentationComment)]
-        public async Task Test_CodeElement()
-        {
-            await VerifyDiagnosticAndFixAsync(@"
-class C
-{
-    /// <summary></summary>
-    /// [|<code></code>|]
-    void M() => M();
-}
-", @"
-class C
-{
-    /// <summary></summary>
-    void M() => M();
 }
 ");
         }

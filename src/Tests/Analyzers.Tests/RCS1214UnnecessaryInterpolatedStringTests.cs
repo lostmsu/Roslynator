@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1214UnnecessaryInterpolatedStringTests : AbstractCSharpCodeFixVerifier
+    public class RCS1214UnnecessaryInterpolatedStringTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.UnnecessaryInterpolatedString;
 
@@ -47,7 +47,8 @@ class C
 {
     void M()
     {
-        string s = [|$""{$""""}""|];
+        string s = null;
+        s = [|$""{$""{s}""}""|];
     }
 }
 ", @"
@@ -55,7 +56,8 @@ class C
 {
     void M()
     {
-        string s = $"""";
+        string s = null;
+        s = $""{s}"";
     }
 }
 ");
@@ -80,6 +82,72 @@ class C
     {
         const string x = """";
         string s = x;
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UnnecessaryInterpolatedString)]
+        public async Task Test_NoInterpolation()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    void M()
+    {
+        string s = [|$|]""abc"";
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = ""abc"";
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UnnecessaryInterpolatedString)]
+        public async Task Test_NoInterpolation2()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    void M()
+    {
+        string s = [|$|]@""abc"";
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = @""abc"";
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UnnecessaryInterpolatedString)]
+        public async Task Test_NoInterpolation3()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    void M()
+    {
+        string s = @[|$|]""abc"";
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = @""abc"";
     }
 }
 ");

@@ -29,9 +29,6 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
             context.RegisterCompilationStartAction(startContext =>
@@ -39,11 +36,11 @@ namespace Roslynator.CSharp.Analysis
                 if (startContext.IsAnalyzerSuppressed(DiagnosticDescriptors.UseAutoProperty))
                     return;
 
-                startContext.RegisterSyntaxNodeAction(AnalyzePropertyDeclaration, SyntaxKind.PropertyDeclaration);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzePropertyDeclaration(f), SyntaxKind.PropertyDeclaration);
             });
         }
 
-        public static void AnalyzePropertyDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzePropertyDeclaration(SyntaxNodeAnalysisContext context)
         {
             var property = (PropertyDeclarationSyntax)context.Node;
 
@@ -111,10 +108,10 @@ namespace Roslynator.CSharp.Analysis
             if (!propertySymbol.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
                 return;
 
-            if (!propertySymbol.Type.Equals(fieldSymbol.Type))
+            if (!SymbolEqualityComparer.Default.Equals(propertySymbol.Type, fieldSymbol.Type))
                 return;
 
-            if (propertySymbol.ContainingType?.Equals(fieldSymbol.ContainingType) != true)
+            if (!SymbolEqualityComparer.Default.Equals(propertySymbol.ContainingType, fieldSymbol.ContainingType))
                 return;
 
             if (setter == null
@@ -159,7 +156,7 @@ namespace Roslynator.CSharp.Analysis
 
                 if (body != null)
                 {
-                    switch (body.Statements.First())
+                    switch (body.Statements[0])
                     {
                         case ReturnStatementSyntax returnStatement:
                             {
@@ -198,7 +195,7 @@ namespace Roslynator.CSharp.Analysis
 
             UseAutoPropertyWalker walker = UseAutoPropertyWalker.GetInstance();
 
-            bool isFixable = false;
+            var isFixable = false;
 
             ImmutableArray<SyntaxReference> syntaxReferences = containingType.DeclaringSyntaxReferences;
 
@@ -208,7 +205,7 @@ namespace Roslynator.CSharp.Analysis
 
                 walker.Visit(propertyDeclaration.Parent);
 
-                isFixable = !walker.IsReferencedInInstanceConstructor && !walker.IsUsedInRefOrOutArgument;
+                isFixable = walker.Success;
             }
             else
             {
@@ -226,7 +223,7 @@ namespace Roslynator.CSharp.Analysis
 
                     walker.Visit(typeDeclaration);
 
-                    isFixable = !walker.IsReferencedInInstanceConstructor && !walker.IsUsedInRefOrOutArgument;
+                    isFixable = walker.Success;
 
                     if (!isFixable)
                         break;
@@ -291,7 +288,7 @@ namespace Roslynator.CSharp.Analysis
 
             ISymbol setterSymbol = semanticModel.GetSymbol(setterName, cancellationToken);
 
-            if (fieldSymbol.Equals(setterSymbol))
+            if (SymbolEqualityComparer.Default.Equals(fieldSymbol, setterSymbol))
                 return fieldSymbol;
 
             return null;
@@ -305,12 +302,8 @@ namespace Roslynator.CSharp.Analysis
 
                 if (body != null)
                 {
-                    StatementSyntax statement = body.Statements.SingleOrDefault(shouldThrow: false);
-
-                    if (statement.IsKind(SyntaxKind.ReturnStatement))
+                    if (body.Statements.SingleOrDefault(shouldThrow: false) is ReturnStatementSyntax returnStatement)
                     {
-                        var returnStatement = (ReturnStatementSyntax)statement;
-
                         return GetIdentifierNameFromExpression(returnStatement.Expression);
                     }
                 }
@@ -331,15 +324,9 @@ namespace Roslynator.CSharp.Analysis
 
                 if (body != null)
                 {
-                    StatementSyntax statement = body.Statements.SingleOrDefault(shouldThrow: false);
-
-                    if (statement.IsKind(SyntaxKind.ExpressionStatement))
+                    if (body.Statements.SingleOrDefault(shouldThrow: false) is ExpressionStatementSyntax expressionStatement)
                     {
-                        var expressionStatement = (ExpressionStatementSyntax)statement;
-
-                        ExpressionSyntax expression = expressionStatement.Expression;
-
-                        return GetIdentifierName(expression);
+                        return GetIdentifierName(expressionStatement.Expression);
                     }
                 }
                 else
@@ -350,7 +337,7 @@ namespace Roslynator.CSharp.Analysis
 
             return null;
 
-            IdentifierNameSyntax GetIdentifierName(ExpressionSyntax expression)
+            static IdentifierNameSyntax GetIdentifierName(ExpressionSyntax expression)
             {
                 if (expression?.Kind() == SyntaxKind.SimpleAssignmentExpression)
                 {
@@ -456,18 +443,9 @@ namespace Roslynator.CSharp.Analysis
 
             public CancellationToken CancellationToken { get; private set; }
 
-            public bool IsUsedInRefOrOutArgument { get; private set; }
+            public bool Success { get; set; } = true;
 
-            public bool IsReferencedInInstanceConstructor { get; private set; }
-
-            protected override bool ShouldVisit
-            {
-                get
-                {
-                    return !IsUsedInRefOrOutArgument
-                        && !IsReferencedInInstanceConstructor;
-                }
-            }
+            protected override bool ShouldVisit => Success;
 
             public void SetValues(
                 IFieldSymbol fieldSymbol,
@@ -479,8 +457,7 @@ namespace Roslynator.CSharp.Analysis
                 ShouldSearchForReferenceInInstanceConstructor = shouldSearchForReferenceInInstanceConstructor;
                 SemanticModel = semanticModel;
                 CancellationToken = cancellationToken;
-                IsUsedInRefOrOutArgument = false;
-                IsReferencedInInstanceConstructor = false;
+                Success = true;
             }
 
             public override void VisitArgument(ArgumentSyntax node)
@@ -495,7 +472,9 @@ namespace Roslynator.CSharp.Analysis
                     {
                         case SyntaxKind.IdentifierName:
                             {
-                                IsUsedInRefOrOutArgument = IsBackingFieldReference((IdentifierNameSyntax)expression);
+                                if (IsBackingFieldReference((IdentifierNameSyntax)expression))
+                                    Success = false;
+
                                 return;
                             }
                         case SyntaxKind.SimpleMemberAccessExpression:
@@ -508,7 +487,9 @@ namespace Roslynator.CSharp.Analysis
 
                                     if (name.IsKind(SyntaxKind.IdentifierName))
                                     {
-                                        IsUsedInRefOrOutArgument = IsBackingFieldReference((IdentifierNameSyntax)name);
+                                        if (IsBackingFieldReference((IdentifierNameSyntax)name))
+                                            Success = false;
+
                                         return;
                                     }
                                 }
@@ -537,21 +518,115 @@ namespace Roslynator.CSharp.Analysis
                 _isInInstanceConstructor = false;
             }
 
+            public override void VisitAssignmentExpression(AssignmentExpressionSyntax node)
+            {
+                if (FieldSymbol.Type.TypeKind == TypeKind.Struct
+                    && IsAssigned(node.Left))
+                {
+                    Success = false;
+                }
+                else
+                {
+                    base.VisitAssignmentExpression(node);
+                }
+            }
+
+            public override void VisitPrefixUnaryExpression(PrefixUnaryExpressionSyntax node)
+            {
+                if (node.IsKind(SyntaxKind.PreIncrementExpression, SyntaxKind.PreDecrementExpression)
+                    && FieldSymbol.Type.TypeKind == TypeKind.Struct
+                    && IsAssigned(node.Operand))
+                {
+                    Success = false;
+                }
+                else
+                {
+                    base.VisitPrefixUnaryExpression(node);
+                }
+            }
+
+            public override void VisitPostfixUnaryExpression(PostfixUnaryExpressionSyntax node)
+            {
+                if (node.IsKind(SyntaxKind.PostIncrementExpression, SyntaxKind.PostDecrementExpression)
+                    && FieldSymbol.Type.TypeKind == TypeKind.Struct
+                    && IsAssigned(node.Operand))
+                {
+                    Success = false;
+                }
+                else
+                {
+                    base.VisitPostfixUnaryExpression(node);
+                }
+            }
+
+            private bool IsAssigned(ExpressionSyntax expression)
+            {
+                switch (expression.Kind())
+                {
+                    case SyntaxKind.SimpleMemberAccessExpression:
+                        {
+                            var memberAccessExpression = (MemberAccessExpressionSyntax)expression;
+                            expression = memberAccessExpression.Expression;
+
+                            break;
+                        }
+                    case SyntaxKind.ElementAccessExpression:
+                        {
+                            var elementAccessExpression = (ElementAccessExpressionSyntax)expression;
+                            expression = elementAccessExpression.Expression;
+
+                            break;
+                        }
+                    default:
+                        {
+                            return false;
+                        }
+                }
+
+                switch (expression.Kind())
+                {
+                    case SyntaxKind.SimpleMemberAccessExpression:
+                        {
+                            var memberAccessExpression = ((MemberAccessExpressionSyntax)expression);
+
+                            if (memberAccessExpression.Expression.IsKind(SyntaxKind.ThisExpression)
+                                && memberAccessExpression.Name.IsKind(SyntaxKind.IdentifierName)
+                                && IsBackingFieldReference((IdentifierNameSyntax)memberAccessExpression.Name))
+                            {
+                                return true;
+                            }
+
+                            break;
+                        }
+                    case SyntaxKind.IdentifierName:
+                        {
+                            if (IsBackingFieldReference((IdentifierNameSyntax)expression))
+                                return true;
+
+                            break;
+                        }
+                }
+
+                return false;
+            }
+
             public override void VisitIdentifierName(IdentifierNameSyntax node)
             {
                 if (_isInInstanceConstructor
                     && IsBackingFieldReference(node))
                 {
-                    IsReferencedInInstanceConstructor = true;
+                    Success = false;
                 }
-
-                base.VisitIdentifierName(node);
+                else
+                {
+                    base.VisitIdentifierName(node);
+                }
             }
 
             private bool IsBackingFieldReference(IdentifierNameSyntax identifierName)
             {
                 return string.Equals(identifierName.Identifier.ValueText, FieldSymbol.Name, StringComparison.Ordinal)
-                    && SemanticModel.GetSymbol(identifierName, CancellationToken)?.Equals(FieldSymbol) == true;
+                    && SymbolEqualityComparer.Default.Equals(SemanticModel.GetSymbol(identifierName, CancellationToken), FieldSymbol);
             }
 
             [ThreadStatic]
@@ -563,14 +638,15 @@ namespace Roslynator.CSharp.Analysis
 
                 if (walker != null)
                 {
+                    Debug.Assert(walker.FieldSymbol == null);
+                    Debug.Assert(walker.SemanticModel == null);
+                    Debug.Assert(walker.CancellationToken == default);
+
                     _cachedInstance = null;
-                }
-                else
-                {
-                    walker = new UseAutoPropertyWalker();
+                    return walker;
                 }
 
-                return walker;
+                return new UseAutoPropertyWalker();
             }
 
             public static void Free(UseAutoPropertyWalker walker)

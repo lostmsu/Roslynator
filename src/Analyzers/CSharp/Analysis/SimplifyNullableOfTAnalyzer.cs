@@ -21,17 +21,13 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
-            context.EnableConcurrentExecution();
 
-            context.RegisterSyntaxNodeAction(AnalyzeQualifiedName, SyntaxKind.QualifiedName);
-            context.RegisterSyntaxNodeAction(AnalyzeGenericName, SyntaxKind.GenericName);
+            context.RegisterSyntaxNodeAction(f => AnalyzeQualifiedName(f), SyntaxKind.QualifiedName);
+            context.RegisterSyntaxNodeAction(f => AnalyzeGenericName(f), SyntaxKind.GenericName);
         }
 
-        public static void AnalyzeGenericName(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeGenericName(SyntaxNodeAnalysisContext context)
         {
             var genericName = (GenericNameSyntax)context.Node;
 
@@ -65,12 +61,24 @@ namespace Roslynator.CSharp.Analysis
             DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.SimplifyNullableOfT, genericName);
         }
 
-        public static void AnalyzeQualifiedName(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeQualifiedName(SyntaxNodeAnalysisContext context)
         {
             var qualifiedName = (QualifiedNameSyntax)context.Node;
 
             if (qualifiedName.IsParentKind(SyntaxKind.UsingDirective, SyntaxKind.QualifiedCref))
                 return;
+
+            if (!(qualifiedName.Right is GenericNameSyntax genericName))
+                return;
+
+            if (genericName
+                .TypeArgumentList?
+                .Arguments
+                .SingleOrDefault(shouldThrow: false)?
+                .IsKind(SyntaxKind.OmittedTypeArgument) != false)
+            {
+                return;
+            }
 
             if (IsWithinNameOfExpression(qualifiedName, context.SemanticModel, context.CancellationToken))
                 return;
@@ -90,7 +98,7 @@ namespace Roslynator.CSharp.Analysis
         private static bool IsWithinNameOfExpression(
             SyntaxNode node,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             for (node = node.Parent; node != null; node = node.Parent)
             {

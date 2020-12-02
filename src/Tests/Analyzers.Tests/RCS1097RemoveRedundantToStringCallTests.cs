@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1097RemoveRedundantToStringCallTests : AbstractCSharpCodeFixVerifier
+    public class RCS1097RemoveRedundantToStringCallTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.RemoveRedundantToStringCall;
 
@@ -104,6 +104,21 @@ class C
     {
         string s = null;
         s = $""{s}"";
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveRedundantToStringCall)]
+        public async Task TestNoDiagnostic_ValueType()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M()
+    {
+        int i = 10;
+        string s = $""'{i.ToString()}'"";
     }
 }
 ");

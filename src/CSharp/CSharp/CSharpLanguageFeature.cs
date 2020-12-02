@@ -5,9 +5,11 @@ namespace Roslynator.CSharp
     internal enum CSharpLanguageFeature
     {
         Unknown,
+        NameOf,
         AsyncMain,
         DefaultLiteral,
         InferredTupleElementNames,
         PatternMatchingWithGenerics,
+        NullCoalescingAssignmentOperator,
     }
 }

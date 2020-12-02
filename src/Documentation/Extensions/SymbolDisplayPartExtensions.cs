@@ -2,13 +2,19 @@
 
 using Microsoft.CodeAnalysis;
 
-namespace Roslynator.Documentation
+namespace Roslynator
 {
     internal static class SymbolDisplayPartExtensions
     {
         public static bool IsPunctuation(this SymbolDisplayPart part)
         {
             return part.Kind == SymbolDisplayPartKind.Punctuation;
+        }
+
+        public static bool IsPunctuation(this SymbolDisplayPart part, string text)
+        {
+            return part.Kind == SymbolDisplayPartKind.Punctuation
+                && part.ToString() == text;
         }
 
         public static bool IsSpace(this SymbolDisplayPart part)
@@ -30,9 +36,44 @@ namespace Roslynator.Documentation
                 case SymbolDisplayPartKind.DelegateName:
                 case SymbolDisplayPartKind.EnumName:
                 case SymbolDisplayPartKind.InterfaceName:
-                case SymbolDisplayPartKind.PropertyName:
                 case SymbolDisplayPartKind.StructName:
                     return true;
+                default:
+                    return false;
+            }
+        }
+
+        internal static bool IsNamespaceOrTypeName(this SymbolDisplayPart part)
+        {
+            switch (part.Kind)
+            {
+                case SymbolDisplayPartKind.NamespaceName:
+                case SymbolDisplayPartKind.ClassName:
+                case SymbolDisplayPartKind.DelegateName:
+                case SymbolDisplayPartKind.EnumName:
+                case SymbolDisplayPartKind.InterfaceName:
+                case SymbolDisplayPartKind.StructName:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        internal static bool IsMemberName(this SymbolDisplayPart part)
+        {
+            switch (part.Kind)
+            {
+                case SymbolDisplayPartKind.EventName:
+                case SymbolDisplayPartKind.FieldName:
+                case SymbolDisplayPartKind.MethodName:
+                case SymbolDisplayPartKind.ExtensionMethodName:
+                case SymbolDisplayPartKind.PropertyName:
+                case SymbolDisplayPartKind.EnumMemberName:
+                case SymbolDisplayPartKind.ConstantName:
+                    return true;
+                case SymbolDisplayPartKind.ClassName:
+                case SymbolDisplayPartKind.StructName:
+                    return part.Symbol is IMethodSymbol methodSymbol && methodSymbol.MethodKind.Is(MethodKind.Constructor, MethodKind.Destructor);
                 default:
                     return false;
             }
@@ -61,10 +102,20 @@ namespace Roslynator.Documentation
                 case SymbolDisplayPartKind.StructName:
                 case SymbolDisplayPartKind.TypeParameterName:
                 case SymbolDisplayPartKind.RangeVariableName:
+                case SymbolDisplayPartKind.ExtensionMethodName:
+                case SymbolDisplayPartKind.EnumMemberName:
+                case SymbolDisplayPartKind.ConstantName:
                     return true;
                 default:
                     return false;
             }
+        }
+
+        public static bool IsGlobalNamespace(this SymbolDisplayPart part)
+        {
+            return part.IsKeyword("global")
+                && part.Symbol.IsKind(SymbolKind.Namespace)
+                && ((INamespaceSymbol)part.Symbol).IsGlobalNamespace;
         }
 
         public static SymbolDisplayPart WithText(this SymbolDisplayPart part, string text)

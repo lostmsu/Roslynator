@@ -2,98 +2,105 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using Roslynator.Configuration;
 
 namespace Roslynator
 {
-    public class CodeAnalysisSettings
+    public abstract class CodeAnalysisSettings<T>
     {
-        public CodeAnalysisSettings()
+        protected CodeAnalysisSettings()
         {
-            Disabled = new IdentifierSet();
+            Disabled = new HashSet<T>();
         }
 
-        public IdentifierSet Disabled { get; }
+        public HashSet<T> Disabled { get; }
 
-        public virtual void Reset()
+        public void Reset()
         {
             Disabled.Clear();
+
+            SetValues(CodeAnalysisConfiguration.Current);
         }
 
-        public bool IsEnabled(string id)
+        public void Reset(CodeAnalysisConfiguration configuration1, CodeAnalysisConfiguration configuration2)
         {
-            return !Disabled.Contains(id);
+            Reset();
+
+            SetValues(configuration1);
+            SetValues(configuration2);
         }
 
-        public bool IsAnyEnabled(string id, string id2)
+        protected abstract void SetValues(CodeAnalysisConfiguration configuration);
+
+        public bool IsEnabled(T item)
         {
-            return IsEnabled(id)
-                || IsEnabled(id2);
+            return !Disabled.Contains(item);
         }
 
-        public bool IsAnyEnabled(string id, string id2, string id3)
+        public bool IsAnyEnabled(T item, T item2)
         {
-            return IsEnabled(id)
-                || IsEnabled(id2)
-                || IsEnabled(id3);
+            return IsEnabled(item)
+                || IsEnabled(item2);
         }
 
-        public bool IsAnyEnabled(string id, string id2, string id3, string id4)
+        public bool IsAnyEnabled(T item, T item2, T item3)
         {
-            return IsEnabled(id)
-                || IsEnabled(id2)
-                || IsEnabled(id3)
-                || IsEnabled(id4);
+            return IsEnabled(item)
+                || IsEnabled(item2)
+                || IsEnabled(item3);
         }
 
-        public bool IsAnyEnabled(string id, string id2, string id3, string id4, string id5)
+        public bool IsAnyEnabled(T item, T item2, T item3, T item4)
         {
-            return IsEnabled(id)
-                || IsEnabled(id2)
-                || IsEnabled(id3)
-                || IsEnabled(id4)
-                || IsEnabled(id5);
+            return IsEnabled(item)
+                || IsEnabled(item2)
+                || IsEnabled(item3)
+                || IsEnabled(item4);
         }
 
-        public bool IsAnyEnabled(string id, string id2, string id3, string id4, string id5, string id6)
+        public bool IsAnyEnabled(T item, T item2, T item3, T item4, T item5)
         {
-            return IsEnabled(id)
-                || IsEnabled(id2)
-                || IsEnabled(id3)
-                || IsEnabled(id4)
-                || IsEnabled(id5)
-                || IsEnabled(id6);
+            return IsEnabled(item)
+                || IsEnabled(item2)
+                || IsEnabled(item3)
+                || IsEnabled(item4)
+                || IsEnabled(item5);
         }
 
-        public void Disable(string id)
+        public bool IsAnyEnabled(T item, T item2, T item3, T item4, T item5, T item6)
         {
-            Debug.WriteLineIf(Disabled.Add(id), $"{id} disabled");
-
-            Disabled.Add(id);
+            return IsEnabled(item)
+                || IsEnabled(item2)
+                || IsEnabled(item3)
+                || IsEnabled(item4)
+                || IsEnabled(item5)
+                || IsEnabled(item6);
         }
 
-        public void Enable(string id)
+        public void Disable(T item)
         {
-            Debug.WriteLineIf(Disabled.Remove(id), $"{id} enabled");
+            Debug.WriteLineIf(Disabled.Add(item), $"{item} disabled");
 
-            Disabled.Remove(id);
+            Disabled.Add(item);
         }
 
-        public void Set(string id, bool isEnabled)
+        public void Enable(T item)
+        {
+            Debug.WriteLineIf(Disabled.Remove(item), $"{item} enabled");
+
+            Disabled.Remove(item);
+        }
+
+        public void Set(T item, bool isEnabled)
         {
             if (isEnabled)
             {
-                Enable(id);
+                Enable(item);
             }
             else
             {
-                Disable(id);
+                Disable(item);
             }
-        }
-
-        public void Set(Dictionary<string, bool> values)
-        {
-            foreach (KeyValuePair<string, bool> kvp in values)
-                Set(kvp.Key, kvp.Value);
         }
     }
 }

@@ -25,27 +25,36 @@ namespace Roslynator.CSharp
             {
                 case CSharpLanguageFeature.Unknown:
                     return false;
+                case CSharpLanguageFeature.NameOf:
+                    return SupportsLanguageVersion(document, LanguageVersion.CSharp6);
                 case CSharpLanguageFeature.AsyncMain:
                 case CSharpLanguageFeature.DefaultLiteral:
                 case CSharpLanguageFeature.InferredTupleElementNames:
                 case CSharpLanguageFeature.PatternMatchingWithGenerics:
-                    return ((CSharpParseOptions)document.Project.ParseOptions).LanguageVersion >= LanguageVersion.CSharp7_1;
+                    return SupportsLanguageVersion(document, LanguageVersion.CSharp7_1);
+                case CSharpLanguageFeature.NullCoalescingAssignmentOperator:
+                    return SupportsLanguageVersion(document, LanguageVersion.CSharp8);
             }
 
             throw new ArgumentException($"Unknown enum value '{feature}'.", nameof(feature));
         }
 
+        internal static bool SupportsLanguageVersion(this Document document, LanguageVersion languageVersion)
+        {
+            return ((CSharpParseOptions)document.Project.ParseOptions).LanguageVersion >= languageVersion;
+        }
+
         internal static DefaultSyntaxOptions GetDefaultSyntaxOptions(this Document document, DefaultSyntaxOptions options = DefaultSyntaxOptions.None)
         {
             return (document.SupportsLanguageFeature(CSharpLanguageFeature.DefaultLiteral))
-                ? options | DefaultSyntaxOptions.PreferDefaultLiteral
+                ? options | DefaultSyntaxOptions.AllowDefaultLiteral
                 : options;
         }
 
         internal static Task<Document> RemoveNodeAsync(
             this Document document,
             SyntaxNode node,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -62,11 +71,10 @@ namespace Roslynator.CSharp
         /// <param name="document"></param>
         /// <param name="member"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         internal static Task<Document> RemoveMemberAsync(
             this Document document,
             MemberDeclarationSyntax member,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -120,7 +128,7 @@ namespace Roslynator.CSharp
         internal static Task<Document> RemoveStatementAsync(
             this Document document,
             StatementSyntax statement,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -135,20 +143,19 @@ namespace Roslynator.CSharp
         /// Creates a new document with comments of the specified kind removed.
         /// </summary>
         /// <param name="document"></param>
-        /// <param name="kinds"></param>
+        /// <param name="comments"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public static async Task<Document> RemoveCommentsAsync(
             this Document document,
-            CommentKinds kinds,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CommentFilter comments,
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
 
             SyntaxNode root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
-            SyntaxNode newRoot = SyntaxRefactorings.RemoveComments(root, kinds)
+            SyntaxNode newRoot = SyntaxRefactorings.RemoveComments(root, comments)
                 .WithFormatterAnnotation();
 
             return document.WithSyntaxRoot(newRoot);
@@ -159,21 +166,20 @@ namespace Roslynator.CSharp
         /// </summary>
         /// <param name="document"></param>
         /// <param name="span"></param>
-        /// <param name="kinds"></param>
+        /// <param name="comments"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public static async Task<Document> RemoveCommentsAsync(
             this Document document,
             TextSpan span,
-            CommentKinds kinds,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CommentFilter comments,
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
 
             SyntaxNode root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
-            SyntaxNode newRoot = SyntaxRefactorings.RemoveComments(root, span, kinds)
+            SyntaxNode newRoot = SyntaxRefactorings.RemoveComments(root, span, comments)
                 .WithFormatterAnnotation();
 
             return document.WithSyntaxRoot(newRoot);
@@ -185,11 +191,10 @@ namespace Roslynator.CSharp
         /// <param name="document"></param>
         /// <param name="span"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public static async Task<Document> RemoveTriviaAsync(
             this Document document,
             TextSpan span,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -205,13 +210,12 @@ namespace Roslynator.CSharp
         /// Creates a new document with preprocessor directives of the specified kind removed.
         /// </summary>
         /// <param name="document"></param>
-        /// <param name="directiveKinds"></param>
+        /// <param name="directiveFilter"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public static async Task<Document> RemovePreprocessorDirectivesAsync(
             this Document document,
-            PreprocessorDirectiveKinds directiveKinds,
-            CancellationToken cancellationToken = default(CancellationToken))
+            PreprocessorDirectiveFilter directiveFilter,
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -220,7 +224,7 @@ namespace Roslynator.CSharp
 
             SourceText sourceText = await document.GetTextAsync(cancellationToken).ConfigureAwait(false);
 
-            SourceText newSourceText = RemovePreprocessorDirectives(sourceText, root.DescendantPreprocessorDirectives(), directiveKinds);
+            SourceText newSourceText = RemovePreprocessorDirectives(sourceText, root.DescendantPreprocessorDirectives(), directiveFilter);
 
             return document.WithText(newSourceText);
         }
@@ -230,14 +234,13 @@ namespace Roslynator.CSharp
         /// </summary>
         /// <param name="document"></param>
         /// <param name="span"></param>
-        /// <param name="directiveKinds"></param>
+        /// <param name="directiveFilter"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public static async Task<Document> RemovePreprocessorDirectivesAsync(
             this Document document,
             TextSpan span,
-            PreprocessorDirectiveKinds directiveKinds,
-            CancellationToken cancellationToken = default(CancellationToken))
+            PreprocessorDirectiveFilter directiveFilter,
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -246,7 +249,7 @@ namespace Roslynator.CSharp
 
             SourceText sourceText = await document.GetTextAsync(cancellationToken).ConfigureAwait(false);
 
-            SourceText newSourceText = RemovePreprocessorDirectives(sourceText, root.DescendantPreprocessorDirectives(span), directiveKinds);
+            SourceText newSourceText = RemovePreprocessorDirectives(sourceText, root.DescendantPreprocessorDirectives(span), directiveFilter);
 
             return document.WithText(newSourceText);
         }
@@ -254,7 +257,7 @@ namespace Roslynator.CSharp
         internal static async Task<Document> RemovePreprocessorDirectivesAsync(
             this Document document,
             IEnumerable<DirectiveTriviaSyntax> directives,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -284,7 +287,7 @@ namespace Roslynator.CSharp
         private static SourceText RemovePreprocessorDirectives(
             SourceText sourceText,
             IEnumerable<DirectiveTriviaSyntax> directives,
-            PreprocessorDirectiveKinds directiveKinds)
+            PreprocessorDirectiveFilter directiveFilter)
         {
             return sourceText.WithChanges(GetTextChanges());
 
@@ -308,39 +311,41 @@ namespace Roslynator.CSharp
                 switch (directive.Kind())
                 {
                     case SyntaxKind.IfDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.If) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.If) != 0;
                     case SyntaxKind.ElifDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Elif) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Elif) != 0;
                     case SyntaxKind.ElseDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Else) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Else) != 0;
                     case SyntaxKind.EndIfDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.EndIf) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.EndIf) != 0;
                     case SyntaxKind.RegionDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Region) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Region) != 0;
                     case SyntaxKind.EndRegionDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.EndRegion) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.EndRegion) != 0;
                     case SyntaxKind.DefineDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Define) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Define) != 0;
                     case SyntaxKind.UndefDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Undef) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Undef) != 0;
                     case SyntaxKind.ErrorDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Error) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Error) != 0;
                     case SyntaxKind.WarningDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Warning) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Warning) != 0;
                     case SyntaxKind.LineDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Line) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Line) != 0;
                     case SyntaxKind.PragmaWarningDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.PragmaWarning) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.PragmaWarning) != 0;
                     case SyntaxKind.PragmaChecksumDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.PragmaChecksum) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.PragmaChecksum) != 0;
                     case SyntaxKind.ReferenceDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Reference) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Reference) != 0;
                     case SyntaxKind.BadDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Bad) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Bad) != 0;
                     case SyntaxKind.ShebangDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Shebang) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Shebang) != 0;
                     case SyntaxKind.LoadDirectiveTrivia:
-                        return (directiveKinds & PreprocessorDirectiveKinds.Load) != 0;
+                        return (directiveFilter & PreprocessorDirectiveFilter.Load) != 0;
+                    case SyntaxKind.NullableDirectiveTrivia:
+                        return (directiveFilter & PreprocessorDirectiveFilter.Nullable) != 0;
                 }
 
                 Debug.Fail(directive.Kind().ToString());
@@ -354,11 +359,10 @@ namespace Roslynator.CSharp
         /// <param name="document"></param>
         /// <param name="region"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public static async Task<Document> RemoveRegionAsync(
             this Document document,
             RegionInfo region,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
@@ -377,9 +381,7 @@ namespace Roslynator.CSharp
                 lines[startLine].Start,
                 lines[endLine].EndIncludingLineBreak);
 
-            var textChange = new TextChange(span, "");
-
-            SourceText newSourceText = sourceText.WithChanges(textChange);
+            SourceText newSourceText = sourceText.WithChange(span, "");
 
             return document.WithText(newSourceText);
         }
@@ -387,7 +389,7 @@ namespace Roslynator.CSharp
         internal static Task<Document> RemoveSingleLineDocumentationComment(
             this Document document,
             DocumentationCommentTriviaSyntax documentationComment,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SyntaxNode node = documentationComment.ParentTrivia.Token.Parent;
             SyntaxNode newNode = SyntaxRefactorings.RemoveSingleLineDocumentationComment(node, documentationComment);
@@ -399,7 +401,7 @@ namespace Roslynator.CSharp
             this Document document,
             in StatementListInfo statementsInfo,
             IEnumerable<StatementSyntax> newStatements,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return ReplaceStatementsAsync(document, statementsInfo, List(newStatements), cancellationToken);
         }
@@ -408,16 +410,25 @@ namespace Roslynator.CSharp
             this Document document,
             in StatementListInfo statementsInfo,
             SyntaxList<StatementSyntax> newStatements,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(statementsInfo.Parent, statementsInfo.WithStatements(newStatements).Parent, cancellationToken);
+        }
+
+        internal static Task<Document> ReplaceStatementsAsync(
+            this Document document,
+            in StatementListInfo statementsInfo,
+            in StatementListInfo newStatementsInfo,
+            CancellationToken cancellationToken = default)
+        {
+            return document.ReplaceNodeAsync(statementsInfo.Parent, newStatementsInfo.Parent, cancellationToken);
         }
 
         internal static Task<Document> ReplaceMembersAsync(
             this Document document,
             in MemberDeclarationListInfo info,
             IEnumerable<MemberDeclarationSyntax> newMembers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(
                 info.Parent,
@@ -429,7 +440,7 @@ namespace Roslynator.CSharp
             this Document document,
             in MemberDeclarationListInfo info,
             SyntaxList<MemberDeclarationSyntax> newMembers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(
                 info.Parent,
@@ -441,7 +452,7 @@ namespace Roslynator.CSharp
             this Document document,
             in ModifierListInfo modifiersInfo,
             IEnumerable<SyntaxToken> newModifiers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return ReplaceModifiersAsync(document, modifiersInfo, TokenList(newModifiers), cancellationToken);
         }
@@ -450,7 +461,7 @@ namespace Roslynator.CSharp
             this Document document,
             in ModifierListInfo modifiersInfo,
             SyntaxTokenList newModifiers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(modifiersInfo.Parent, modifiersInfo.WithModifiers(newModifiers).Parent, cancellationToken);
         }

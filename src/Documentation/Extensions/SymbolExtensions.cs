@@ -47,7 +47,7 @@ namespace Roslynator.Documentation
 
                     if (overriddenSymbol != null)
                     {
-                        (overriddenSymbols ?? (overriddenSymbols = new HashSet<ISymbol>())).Add(overriddenSymbol);
+                        (overriddenSymbols ??= new HashSet<ISymbol>()).Add(overriddenSymbol);
                     }
 
                     symbols.Add(symbol);
@@ -57,7 +57,7 @@ namespace Roslynator.Documentation
 
                 while (baseType != null)
                 {
-                    bool areInternalsVisible = typeSymbol.ContainingAssembly == baseType.ContainingAssembly
+                    bool areInternalsVisible = typeSymbol.ContainingAssembly.Identity.Equals(baseType.ContainingAssembly.Identity)
                         || baseType.ContainingAssembly.GivesAccessTo(typeSymbol.ContainingAssembly);
 
                     foreach (ISymbol symbol in baseType.GetMembers())
@@ -73,7 +73,7 @@ namespace Roslynator.Documentation
 
                             if (overriddenSymbol != null)
                             {
-                                (overriddenSymbols ?? (overriddenSymbols = new HashSet<ISymbol>())).Add(overriddenSymbol);
+                                (overriddenSymbols ??= new HashSet<ISymbol>()).Add(overriddenSymbol);
                             }
                         }
                     }
@@ -125,21 +125,6 @@ namespace Roslynator.Documentation
             }
 
             return ImmutableArray<ITypeParameterSymbol>.Empty;
-        }
-
-        public static ImmutableArray<IParameterSymbol> GetParameters(this ISymbol symbol)
-        {
-            switch (symbol.Kind)
-            {
-                case SymbolKind.Method:
-                    return ((IMethodSymbol)symbol).Parameters;
-                case SymbolKind.NamedType:
-                    return ((INamedTypeSymbol)symbol).DelegateInvokeMethod?.Parameters ?? ImmutableArray<IParameterSymbol>.Empty;
-                case SymbolKind.Property:
-                    return ((IPropertySymbol)symbol).Parameters;
-            }
-
-            return ImmutableArray<IParameterSymbol>.Empty;
         }
 
         public static ISymbol GetFirstExplicitInterfaceImplementation(this ISymbol symbol)
@@ -286,107 +271,16 @@ namespace Roslynator.Documentation
             return parts;
         }
 
-        public static string ToDisplayString(this INamedTypeSymbol typeSymbol, SymbolDisplayFormat format, SymbolDisplayTypeDeclarationOptions typeDeclarationOptions)
-        {
-            return typeSymbol.ToDisplayParts(format, typeDeclarationOptions).ToDisplayString();
-        }
-
-        public static ImmutableArray<SymbolDisplayPart> ToDisplayParts(this INamedTypeSymbol typeSymbol, SymbolDisplayFormat format, SymbolDisplayTypeDeclarationOptions typeDeclarationOptions)
-        {
-            if (typeDeclarationOptions == SymbolDisplayTypeDeclarationOptions.None)
-                return typeSymbol.ToDisplayParts(format);
-
-            ImmutableArray<SymbolDisplayPart> parts = typeSymbol.ToDisplayParts(format);
-
-            ImmutableArray<SymbolDisplayPart>.Builder builder = ImmutableArray.CreateBuilder<SymbolDisplayPart>(parts.Length);
-
-            if ((typeDeclarationOptions & SymbolDisplayTypeDeclarationOptions.IncludeAccessibility) != 0)
-            {
-                switch (typeSymbol.DeclaredAccessibility)
-                {
-                    case Accessibility.Public:
-                        {
-                            AddKeyword(SyntaxKind.PublicKeyword);
-                            break;
-                        }
-                    case Accessibility.ProtectedOrInternal:
-                        {
-                            AddKeyword(SyntaxKind.ProtectedKeyword);
-                            AddKeyword(SyntaxKind.InternalKeyword);
-                            break;
-                        }
-                    case Accessibility.Internal:
-                        {
-                            AddKeyword(SyntaxKind.InternalKeyword);
-                            break;
-                        }
-                    case Accessibility.Protected:
-                        {
-                            AddKeyword(SyntaxKind.ProtectedKeyword);
-                            break;
-                        }
-                    case Accessibility.ProtectedAndInternal:
-                        {
-                            AddKeyword(SyntaxKind.PrivateKeyword);
-                            AddKeyword(SyntaxKind.ProtectedKeyword);
-                            break;
-                        }
-                    case Accessibility.Private:
-                        {
-                            AddKeyword(SyntaxKind.PrivateKeyword);
-                            break;
-                        }
-                    default:
-                        {
-                            throw new InvalidOperationException();
-                        }
-                }
-            }
-
-            if ((typeDeclarationOptions & SymbolDisplayTypeDeclarationOptions.IncludeModifiers) != 0)
-            {
-                if (typeSymbol.IsStatic)
-                    AddKeyword(SyntaxKind.StaticKeyword);
-
-                if (typeSymbol.IsSealed
-                    && !typeSymbol.TypeKind.Is(TypeKind.Struct, TypeKind.Enum, TypeKind.Delegate))
-                {
-                    AddKeyword(SyntaxKind.SealedKeyword);
-                }
-
-                if (typeSymbol.IsAbstract
-                    && typeSymbol.TypeKind != TypeKind.Interface)
-                {
-                    AddKeyword(SyntaxKind.AbstractKeyword);
-                }
-            }
-
-            builder.AddRange(parts);
-
-            return builder.ToImmutableArray();
-
-            void AddKeyword(SyntaxKind kind)
-            {
-                builder.Add(SymbolDisplayPartFactory.Keyword(SyntaxFacts.GetText(kind)));
-                AddSpace();
-            }
-
-            void AddSpace()
-            {
-                builder.Add(SymbolDisplayPartFactory.Space());
-            }
-        }
-
-        internal static ImmutableArray<AttributeInfo> GetAttributesIncludingInherited(this INamedTypeSymbol namedType, Func<INamedTypeSymbol, bool> predicate = null)
+        internal static ImmutableArray<AttributeInfo> GetAttributesIncludingInherited(this INamedTypeSymbol namedType, Func<ISymbol, AttributeData, bool> predicate = null)
         {
             HashSet<AttributeInfo> attributes = null;
 
             foreach (AttributeData attributeData in namedType.GetAttributes())
             {
                 if (predicate == null
-                    || predicate(attributeData.AttributeClass))
+                    || predicate(namedType, attributeData))
                 {
-                    (attributes ?? (attributes = new HashSet<AttributeInfo>(AttributeInfo.AttributeClassComparer))).Add(new AttributeInfo(namedType, attributeData));
+                    (attributes ??= new HashSet<AttributeInfo>(AttributeInfo.AttributeClassComparer)).Add(new AttributeInfo(namedType, attributeData));
                 }
             }
 
@@ -403,7 +297,8 @@ namespace Roslynator.Documentation
                     {
                         TypedConstant typedConstant = attributeUsage.NamedArguments.FirstOrDefault(f => f.Key == "Inherited").Value;
 
-                        if (typedConstant.Type?.SpecialType == SpecialType.System_Boolean
+                        if (typedConstant.Kind != TypedConstantKind.Error
+                            && typedConstant.Type?.SpecialType == SpecialType.System_Boolean
                             && (!(bool)typedConstant.Value))
                         {
                             continue;
@@ -411,9 +306,9 @@ namespace Roslynator.Documentation
                     }
 
                     if (predicate == null
-                        || predicate(attributeData.AttributeClass))
+                        || predicate(baseType, attributeData))
                     {
-                        (attributes ?? (attributes = new HashSet<AttributeInfo>(AttributeInfo.AttributeClassComparer))).Add(new AttributeInfo(baseType, attributeData));
+                        (attributes ??= new HashSet<AttributeInfo>(AttributeInfo.AttributeClassComparer)).Add(new AttributeInfo(baseType, attributeData));
                     }
                 }
 
@@ -423,6 +318,67 @@ namespace Roslynator.Documentation
             return (attributes != null)
                 ? attributes.ToImmutableArray()
                 : ImmutableArray<AttributeInfo>.Empty;
+        }
+
+        public static IEnumerable<ISymbol> GetExplicitImplementations(this INamedTypeSymbol typeSymbol, bool includeAccessors = false)
+        {
+            if (!typeSymbol.TypeKind.Is(TypeKind.Delegate, TypeKind.Enum))
+            {
+                foreach (ISymbol member in typeSymbol.GetMembers())
+                {
+                    if (IsExplicitImplementation(member, includeAccessors))
+                        yield return member;
+                }
+            }
+        }
+
+        public static bool IsExplicitImplementation(this ISymbol symbol, bool includeAccessors = false)
+        {
+            switch (symbol.Kind)
+            {
+                case SymbolKind.Event:
+                    {
+                        var eventSymbol = (IEventSymbol)symbol;
+
+                        return !eventSymbol.ExplicitInterfaceImplementations.IsDefaultOrEmpty;
+                    }
+                case SymbolKind.Method:
+                    {
+                        var methodSymbol = (IMethodSymbol)symbol;
+
+                        if (methodSymbol.MethodKind != MethodKind.ExplicitInterfaceImplementation)
+                            return false;
+
+                        ImmutableArray<IMethodSymbol> explicitInterfaceImplementations = methodSymbol.ExplicitInterfaceImplementations;
+
+                        if (explicitInterfaceImplementations.IsDefaultOrEmpty)
+                            return false;
+
+                        if (!includeAccessors)
+                        {
+                            if (methodSymbol.MetadataName.EndsWith(".get_Item", StringComparison.Ordinal))
+                            {
+                                if (explicitInterfaceImplementations[0].MethodKind == MethodKind.PropertyGet)
+                                    return false;
+                            }
+                            else if (methodSymbol.MetadataName.EndsWith(".set_Item", StringComparison.Ordinal))
+                            {
+                                if (explicitInterfaceImplementations[0].MethodKind == MethodKind.PropertySet)
+                                    return false;
+                            }
+                        }
+
+                        return true;
+                    }
+                case SymbolKind.Property:
+                    {
+                        var propertySymbol = (IPropertySymbol)symbol;
+
+                        return !propertySymbol.ExplicitInterfaceImplementations.IsDefaultOrEmpty;
+                    }
+            }
+
+            return false;
         }
     }
 }

@@ -31,7 +31,9 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsEnabled(CodeFixIdentifiers.RemovePropertyOrFieldInitializer))
+            Diagnostic diagnostic = context.Diagnostics[0];
+
+            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.RemovePropertyOrFieldInitializer))
                 return;
 
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
@@ -44,16 +46,10 @@ namespace Roslynator.CSharp.CodeFixes
             if (token.Kind() != SyntaxKind.IdentifierToken)
                 return;
 
-            Diagnostic diagnostic = context.Diagnostics[0];
-
-            SyntaxNode parent = token.Parent;
-
-            switch (parent.Kind())
+            switch (token.Parent)
             {
-                case SyntaxKind.PropertyDeclaration:
+                case PropertyDeclarationSyntax propertyDeclaration:
                     {
-                        var propertyDeclaration = (PropertyDeclarationSyntax)parent;
-
                         EqualsValueClauseSyntax initializer = propertyDeclaration.Initializer;
 
                         CodeAction codeAction = CodeAction.Create(
@@ -73,9 +69,8 @@ namespace Roslynator.CSharp.CodeFixes
                         context.RegisterCodeFix(codeAction, diagnostic);
                         break;
                     }
-                case SyntaxKind.VariableDeclarator:
+                case VariableDeclaratorSyntax variableDeclarator:
                     {
-                        var variableDeclarator = (VariableDeclaratorSyntax)parent;
                         EqualsValueClauseSyntax initializer = variableDeclarator.Initializer;
 
                         CodeAction codeAction = CodeAction.Create(

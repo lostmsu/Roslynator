@@ -26,10 +26,8 @@ namespace Roslynator.CSharp.Analysis.AddExceptionToDocumentationComment
             if (parent.Kind() == SyntaxKind.Block)
                 parent = parent.Parent;
 
-            if (parent?.Kind() != SyntaxKind.IfStatement)
+            if (!(parent is IfStatementSyntax ifStatement))
                 return null;
-
-            var ifStatement = (IfStatementSyntax)parent;
 
             ExpressionSyntax condition = ifStatement.Condition;
 
@@ -48,7 +46,7 @@ namespace Roslynator.CSharp.Analysis.AddExceptionToDocumentationComment
             if (leftSymbol?.Kind != SymbolKind.Parameter)
                 return null;
 
-            if (leftSymbol.ContainingSymbol?.Equals(DeclarationSymbol) != true)
+            if (!SymbolEqualityComparer.Default.Equals(leftSymbol.ContainingSymbol, DeclarationSymbol))
                 return null;
 
             return (IParameterSymbol)leftSymbol;

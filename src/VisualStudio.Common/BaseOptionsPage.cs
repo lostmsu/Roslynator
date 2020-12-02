@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows;
 using Microsoft.VisualStudio.Shell;
 
@@ -11,22 +10,29 @@ namespace Roslynator.VisualStudio
 {
     public abstract class BaseOptionsPage : UIElementDialogPage
     {
-        private bool _isActive;
-
         protected override UIElement Child => Control;
 
         [Browsable(false)]
         public string LastMaxId { get; set; }
 
-        protected abstract string DisabledByDefault { get; }
-
         protected abstract string MaxId { get; }
 
         protected HashSet<string> DisabledItems { get; } = new HashSet<string>();
 
-        protected BaseOptionsPageControl Control { get; } = new BaseOptionsPageControl();
+        internal BaseOptionsPageControl Control { get; } = new BaseOptionsPageControl();
 
-        protected abstract void Fill(ICollection<BaseModel> codeFixes);
+        public bool IsLoaded { get; private set; }
+
+        protected abstract void Fill(ICollection<BaseModel> items);
+
+        public void Load()
+        {
+            if (!IsLoaded)
+            {
+                Fill(Control.Items);
+                IsLoaded = true;
+            }
+        }
 
         internal IEnumerable<string> GetDisabledItems()
         {
@@ -34,27 +40,26 @@ namespace Roslynator.VisualStudio
                 yield return id;
         }
 
-        public void CheckNewItemsDisabledByDefault()
+        public void CheckNewItemsDisabledByDefault(IEnumerable<string> itemsDisabledByDefault)
         {
-            bool shouldSave = false;
+            var shouldSave = false;
 
             if (string.IsNullOrEmpty(LastMaxId))
             {
                 if (DisabledItems.Count == 0)
                 {
-                    foreach (string id in DisabledByDefault.Split(','))
+                    foreach (string id in itemsDisabledByDefault)
                         DisabledItems.Add(id);
                 }
 
                 shouldSave = true;
             }
-            else if (string.Compare(LastMaxId, MaxId, StringComparison.Ordinal) < 0)
+            else if (string.CompareOrdinal(LastMaxId, MaxId) < 0)
             {
-                foreach (string id in DisabledByDefault
-                    .Split(',')
-                    .Where(f => string.Compare(LastMaxId, f, StringComparison.Ordinal) < 0))
+                foreach (string id in itemsDisabledByDefault)
                 {
-                    DisabledItems.Add(id);
+                    if (string.CompareOrdinal(LastMaxId, id) < 0)
+                        DisabledItems.Add(id);
                 }
 
                 shouldSave = true;
@@ -71,16 +76,12 @@ namespace Roslynator.VisualStudio
         {
             base.OnActivate(e);
 
-            if (!_isActive)
-            {
-                Fill(Control.Items);
-                _isActive = true;
-            }
+            Load();
         }
 
         protected override void OnClosed(EventArgs e)
         {
-            _isActive = false;
+            IsLoaded = false;
         }
 
         protected override void OnApply(PageApplyEventArgs e)
@@ -95,8 +96,8 @@ namespace Roslynator.VisualStudio
 
         protected virtual void OnApply()
         {
-            foreach (BaseModel item in Control.Items)
-                SetIsEnabled(item.Id, item.Enabled);
+            foreach (BaseModel model in Control.Items)
+                SetIsEnabled(model.Id, model.Enabled);
         }
 
         protected void SetIsEnabled(string id, bool isEnabled)

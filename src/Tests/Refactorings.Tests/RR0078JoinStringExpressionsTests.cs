@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Refactorings.Tests
 {
-    public class RR0078JoinStringExpressionsTests : AbstractCSharpCodeRefactoringVerifier
+    public class RR0078JoinStringExpressionsTests : AbstractCSharpRefactoringVerifier
     {
         public override string RefactoringId { get; } = RefactoringIdentifiers.JoinStringExpressions;
 
@@ -51,6 +51,129 @@ class C
     }
 }
 ", equivalenceKey: RefactoringId);
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.JoinStringExpressions)]
+        public async Task Test_RegularAndInterpolated()
+        {
+            await VerifyRefactoringAsync(@"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = [|""{}"" + $""{s}""|];
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = $""{{}}{s}"";
+    }
+}
+", equivalenceKey: RefactoringId);
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.JoinStringExpressions)]
+        public async Task Test_VerbatimAndInterpolated()
+        {
+            await VerifyRefactoringAsync(@"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = [|@"" """" {} "" + $"" \"" {s} ""|];
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = $"" \"" {{}}  \"" {s} "";
+    }
+}
+", equivalenceKey: RefactoringId);
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.JoinStringExpressions)]
+        public async Task Test_RegularAndVerbatimInterpolated()
+        {
+            await VerifyRefactoringAsync(@"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = [|"" \"" {} "" + $@"" """" {s} ""|];
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = $"" \"" {{}}  \"" {s} "";
+    }
+}
+", equivalenceKey: RefactoringId);
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.JoinStringExpressions)]
+        public async Task Test_RegularAndMultilineVerbatim()
+        {
+            await VerifyRefactoringAsync(@"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = [|"" \r\n "" + @""
+""|];
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = "" \r\n \r\n"";
+    }
+}
+", equivalenceKey: RefactoringId);
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.JoinStringExpressions)]
+        public async Task Test_ToMultilineStringLiteral()
+        {
+            await VerifyRefactoringAsync(@"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = [|""\r\n"" +
+"" ""|];
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string s = null;
+        s = @""
+ "";
+    }
+}
+", equivalenceKey: EquivalenceKey.Join(RefactoringId, "Multiline"));
         }
     }
 }

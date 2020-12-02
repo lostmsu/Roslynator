@@ -33,8 +33,8 @@ namespace Roslynator.CSharp.Refactorings
             }
 
             if (context.IsAnyRefactoringEnabled(
-                    RefactoringIdentifiers.ExpandProperty,
-                    RefactoringIdentifiers.ExpandPropertyAndAddBackingField)
+                RefactoringIdentifiers.ExpandProperty,
+                RefactoringIdentifiers.ExpandPropertyAndAddBackingField)
                 && propertyDeclaration.Span.Contains(context.Span)
                 && ExpandPropertyRefactoring.CanRefactor(propertyDeclaration))
             {
@@ -55,31 +55,18 @@ namespace Roslynator.CSharp.Refactorings
                 }
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.UseExpressionBodiedMember)
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ConvertBlockBodyToExpressionBody)
                 && context.SupportsCSharp6
-                && UseExpressionBodiedMemberRefactoring.CanRefactor(propertyDeclaration, context.Span))
+                && ConvertBlockBodyToExpressionBodyRefactoring.CanRefactor(propertyDeclaration, context.Span))
             {
                 context.RegisterRefactoring(
-                    UseExpressionBodiedMemberRefactoring.Title,
-                    ct => UseExpressionBodiedMemberRefactoring.RefactorAsync(context.Document, propertyDeclaration, ct),
-                    RefactoringIdentifiers.UseExpressionBodiedMember);
+                    ConvertBlockBodyToExpressionBodyRefactoring.Title,
+                    ct => ConvertBlockBodyToExpressionBodyRefactoring.RefactorAsync(context.Document, propertyDeclaration, ct),
+                    RefactoringIdentifiers.ConvertBlockBodyToExpressionBody);
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.NotifyPropertyChanged)
-                && await NotifyPropertyChangedRefactoring.CanRefactorAsync(context, propertyDeclaration).ConfigureAwait(false))
-            {
-                context.RegisterRefactoring(
-                    "Notify property changed",
-                    cancellationToken =>
-                    {
-                        return NotifyPropertyChangedRefactoring.RefactorAsync(
-                            context.Document,
-                            propertyDeclaration,
-                            context.SupportsCSharp6,
-                            cancellationToken);
-                    },
-                    RefactoringIdentifiers.NotifyPropertyChanged);
-            }
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.NotifyWhenPropertyChange))
+                await NotifyWhenPropertyChangeRefactoring.ComputeRefactoringAsync(context, propertyDeclaration).ConfigureAwait(false);
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.MakeMemberAbstract)
                 && propertyDeclaration.HeaderSpan().Contains(context.Span))
@@ -88,7 +75,7 @@ namespace Roslynator.CSharp.Refactorings
             }
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.MakeMemberVirtual)
-                && propertyDeclaration.HeaderSpan().Contains(context.Span))
+                && context.Span.IsEmptyAndContainedInSpan(propertyDeclaration.Identifier))
             {
                 MakePropertyVirtualRefactoring.ComputeRefactoring(context, propertyDeclaration);
             }
@@ -150,7 +137,8 @@ namespace Roslynator.CSharp.Refactorings
                 newName,
                 symbol,
                 context.Solution,
-                cancellationToken: context.CancellationToken).ConfigureAwait(false))
+                cancellationToken: context.CancellationToken)
+                .ConfigureAwait(false))
             {
                 return;
             }

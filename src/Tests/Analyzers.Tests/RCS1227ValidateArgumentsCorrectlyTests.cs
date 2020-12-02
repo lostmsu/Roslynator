@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1227ValidateArgumentsCorrectlyTests : AbstractCSharpCodeFixVerifier
+    public class RCS1227ValidateArgumentsCorrectlyTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.ValidateArgumentsCorrectly;
 
@@ -67,6 +67,113 @@ class C
         }
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
+        public async Task Test_PreprocessorDirectives()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+using System;
+using System.Collections.Generic;
+
+class C
+{
+    IEnumerable<string> M(object p, object p2)
+    {
+        if (p == null)
+            throw new ArgumentNullException(nameof(p));
+
+        if (p2 == null)
+            throw new ArgumentNullException(nameof(p2));
+
+#if DEBUG
+#endif
+        [||]string s = null;
+        yield return s;
+    }
+}
+", @"
+using System;
+using System.Collections.Generic;
+
+class C
+{
+    IEnumerable<string> M(object p, object p2)
+    {
+        if (p == null)
+            throw new ArgumentNullException(nameof(p));
+
+        if (p2 == null)
+            throw new ArgumentNullException(nameof(p2));
+
+        return M2();
+
+        IEnumerable<string> M2()
+        {
+#if DEBUG
+#endif
+            string s = null;
+            yield return s;
+        }
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
+        public async Task Test_IAsyncEnumerable()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+class C
+{
+    /// x
+    async IAsyncEnumerable<int> M(object arg)
+    {
+        if (arg is null)
+            throw new ArgumentNullException();
+
+        [||]yield return await Task.FromResult(0);
+    }
+}
+", @"
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+class C
+{
+    /// x
+    IAsyncEnumerable<int> M(object arg)
+    {
+        if (arg is null)
+            throw new ArgumentNullException();
+
+        return M2();
+
+        async IAsyncEnumerable<int> M2()
+        {
+            yield return await Task.FromResult(0);
+        }
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
+        public async Task TestNoDiagnostic_NoStatement()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M(object p)
+    {
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
         public async Task TestNoDiagnostic_NoNullCheck()
         {
             await VerifyNoDiagnosticAsync(@"
@@ -80,6 +187,78 @@ class C
         string s = null;
         yield return s;
     }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
+        public async Task TestNoDiagnostic_NullChecksOnly()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+
+class C
+{
+    void M(object p, object p2)
+    {
+        if (p == null)
+            throw new ArgumentNullException(nameof(p));
+
+        if (p2 == null)
+            throw new ArgumentNullException(nameof(p2));
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
+        public async Task TestNoDiagnostic_IfElse_PreprocessorDirectives()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+using System.Collections.Generic;
+
+class C
+{
+    IEnumerable<string> M(object p, object p2)
+    {
+        if (p == null)
+            throw new ArgumentNullException(nameof(p));
+#if DEBUG
+        string s = null;
+#endif
+        yield return s;
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
+        public async Task TestNoDiagnostic_NoParameters()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System.Collections.Generic;
+
+class C
+{
+    IEnumerable<string> M()
+    {
+        string s = null;
+        yield return s;
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.ValidateArgumentsCorrectly)]
+        public async Task TestNoDiagnostic_NoMethodBody()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System.Collections.Generic;
+
+abstract class C
+{
+    protected abstract IEnumerable<string> M();
 }
 ");
         }

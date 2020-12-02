@@ -8,7 +8,7 @@ namespace Roslynator.CodeGeneration.CSharp
 {
     public static class RefactoringTestGenerator
     {
-        public static CompilationUnitSyntax Generate(RefactoringDescriptor refactoring, string className)
+        public static CompilationUnitSyntax Generate(RefactoringMetadata refactoring, string className)
         {
             string s = _sourceTemplate
                 .Replace("$ClassName$", className)
@@ -27,7 +27,7 @@ using Xunit;
 namespace Roslynator.CSharp.Refactorings.Tests
 {
     //TODO: Add tests for $Id$
-    public class $ClassName$ : AbstractCSharpCodeRefactoringVerifier
+    public class $ClassName$ : AbstractCSharpRefactoringVerifier
     {
         public override string RefactoringId { get; } = RefactoringIdentifiers.$Identifier$;
 
@@ -41,18 +41,18 @@ using System.Linq;
 using System.Threading.Tasks;
 
 class C
+{
+    void M()
     {
-        void M()
-        {
-        }
     }
+}
 "", @""
 "", equivalenceKey: RefactoringId);
         }
 
         //[Theory, Trait(Traits.Refactoring, RefactoringIdentifiers.$Identifier$)]
         //[InlineData("""", """")]
-        public async Task Test2(string fromData, string toData)
+        public async Task Test2(string source, string expected)
         {
             await VerifyRefactoringAsync(@""
 using System;
@@ -66,7 +66,7 @@ class C
     {
     }
 }
-"", fromData, toData, equivalenceKey: RefactoringId);
+"", source, expected, equivalenceKey: RefactoringId);
         }
 
         //[Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.$Identifier$)]

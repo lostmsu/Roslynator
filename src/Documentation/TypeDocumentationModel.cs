@@ -6,6 +6,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Roslynator.FindSymbols;
 
 namespace Roslynator.Documentation
 {
@@ -17,15 +18,15 @@ namespace Roslynator.Documentation
 
         internal TypeDocumentationModel(
             INamedTypeSymbol typeSymbol,
-            DocumentationModel documentationModel)
+            SymbolFilterOptions filter)
         {
             Symbol = typeSymbol;
-            DocumentationModel = documentationModel;
+            Filter = filter;
         }
 
         public INamedTypeSymbol Symbol { get; }
 
-        internal DocumentationModel DocumentationModel { get; }
+        internal SymbolFilterOptions Filter { get; }
 
         public TypeKind TypeKind => Symbol.TypeKind;
 
@@ -58,7 +59,7 @@ namespace Roslynator.Documentation
             {
                 if (_members.IsDefault)
                 {
-                    _members = Symbol.GetMembers(f => DocumentationModel.IsVisible(f));
+                    _members = Symbol.GetMembers(f => Filter.IsMatch(f));
                 }
 
                 return _members;
@@ -77,12 +78,18 @@ namespace Roslynator.Documentation
                     }
                     else
                     {
-                        _membersIncludingInherited = Symbol.GetMembers(f => DocumentationModel.IsVisible(f), includeInherited: true);
+                        _membersIncludingInherited = Symbol.GetMembers(f => Filter.IsMatch(f), includeInherited: true);
                     }
                 }
 
                 return _membersIncludingInherited;
             }
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        private string DebuggerDisplay
+        {
+            get { return $"{Symbol.Kind} {Symbol.ToDisplayString(Roslynator.SymbolDisplayFormats.Test)}"; }
         }
 
         private ImmutableArray<ISymbol> GetMembers(bool includeInherited)
@@ -310,98 +317,9 @@ namespace Roslynator.Documentation
             }
         }
 
-        public IEnumerable<ISymbol> GetExplicitInterfaceImplementations()
+        public IEnumerable<ISymbol> GetExplicitImplementations()
         {
-            if (TypeKind.Is(TypeKind.Delegate, TypeKind.Enum))
-                yield break;
-
-            foreach (ISymbol member in Symbol.GetMembers())
-            {
-                switch (member.Kind)
-                {
-                    case SymbolKind.Event:
-                        {
-                            var eventSymbol = (IEventSymbol)member;
-
-                            if (!eventSymbol.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
-                                yield return eventSymbol;
-
-                            break;
-                        }
-                    case SymbolKind.Method:
-                        {
-                            var methodSymbol = (IMethodSymbol)member;
-
-                            if (methodSymbol.MethodKind != MethodKind.ExplicitInterfaceImplementation)
-                                break;
-
-                            ImmutableArray<IMethodSymbol> explicitInterfaceImplementations = methodSymbol.ExplicitInterfaceImplementations;
-
-                            if (explicitInterfaceImplementations.IsDefaultOrEmpty)
-                                break;
-
-                            if (methodSymbol.MetadataName.EndsWith(".get_Item", StringComparison.Ordinal))
-                            {
-                                if (explicitInterfaceImplementations[0].MethodKind == MethodKind.PropertyGet)
-                                    break;
-                            }
-                            else if (methodSymbol.MetadataName.EndsWith(".set_Item", StringComparison.Ordinal))
-                            {
-                                if (explicitInterfaceImplementations[0].MethodKind == MethodKind.PropertySet)
-                                    break;
-                            }
-
-                            yield return methodSymbol;
-                            break;
-                        }
-                    case SymbolKind.Property:
-                        {
-                            var propertySymbol = (IPropertySymbol)member;
-
-                            if (!propertySymbol.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
-                                yield return propertySymbol;
-
-                            break;
-                        }
-                }
-            }
-        }
-
-        public IEnumerable<IMethodSymbol> GetExtensionMethods()
-        {
-            return DocumentationModel.GetExtensionMethods(Symbol);
-        }
-
-        public IEnumerable<INamedTypeSymbol> GetDerivedTypes()
-        {
-            if (TypeKind.Is(TypeKind.Class, TypeKind.Interface)
-                && !IsStatic)
-            {
-                foreach (INamedTypeSymbol typeSymbol in DocumentationModel.Types)
-                {
-                    if (typeSymbol.BaseType?.OriginalDefinition.Equals(Symbol) == true)
-                        yield return typeSymbol;
-
-                    foreach (INamedTypeSymbol interfaceSymbol in typeSymbol.Interfaces)
-                    {
-                        if (interfaceSymbol.OriginalDefinition.Equals(Symbol))
-                            yield return typeSymbol;
-                    }
-                }
-            }
-        }
-
-        public IEnumerable<INamedTypeSymbol> GetAllDerivedTypes()
-        {
-            if (TypeKind.Is(TypeKind.Class, TypeKind.Interface)
-                && !IsStatic)
-            {
-                foreach (INamedTypeSymbol typeSymbol in DocumentationModel.Types)
-                {
-                    if (typeSymbol.InheritsFrom(Symbol, includeInterfaces: true))
-                        yield return typeSymbol;
-                }
-            }
+            return Symbol.GetExplicitImplementations();
         }
 
         public IEnumerable<INamedTypeSymbol> GetImplementedInterfaces(bool omitIEnumerable = false)
@@ -476,7 +394,7 @@ namespace Roslynator.Documentation
 
                 if (IsEnabled(TypeDocumentationParts.ExplicitInterfaceImplementations))
                 {
-                    foreach (ISymbol result in GetExplicitInterfaceImplementations())
+                    foreach (ISymbol result in GetExplicitImplementations())
                         yield return result;
                 }
 
@@ -501,12 +419,6 @@ namespace Roslynator.Documentation
         public override int GetHashCode()
         {
             return Symbol.GetHashCode();
-        }
-
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        private string DebuggerDisplay
-        {
-            get { return $"{Symbol.Kind} {Symbol.ToDisplayString(Roslynator.SymbolDisplayFormats.Test)}"; }
         }
     }
 }

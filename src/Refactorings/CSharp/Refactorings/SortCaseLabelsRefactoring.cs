@@ -105,7 +105,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             SyntaxListSelection<SwitchLabelSyntax> selectedLabels,
             IComparer<SwitchLabelSyntax> comparer,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SyntaxList<SwitchLabelSyntax> labels = selectedLabels.UnderlyingList;
 
@@ -114,7 +114,7 @@ namespace Roslynator.CSharp.Refactorings
                 selectedLabels.Count,
                 selectedLabels.OrderBy(f => f, comparer));
 
-            var section = (SwitchSectionSyntax)labels.First().Parent;
+            var section = (SwitchSectionSyntax)labels[0].Parent;
 
             SwitchSectionSyntax newSection = section.WithLabels(newLabels);
 

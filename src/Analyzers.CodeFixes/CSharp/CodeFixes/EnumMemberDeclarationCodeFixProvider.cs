@@ -114,7 +114,7 @@ namespace Roslynator.CSharp.CodeFixes
                 return f.Value.CompareTo(g.Value);
             });
 
-            ExpressionSyntax oldValue = enumMemberDeclaration.EqualsValue.Value;
+            ExpressionSyntax oldValue = enumMemberDeclaration.EqualsValue.Value.WalkDownParentheses();
 
             BinaryExpressionSyntax newValue = BitwiseOrExpression(CreateIdentifierName(values[0]), CreateIdentifierName(values[1]));
 
@@ -165,7 +165,7 @@ namespace Roslynator.CSharp.CodeFixes
             {
                 IFieldSymbol fieldSymbol = semanticModel.GetDeclaredSymbol(enumMember, cancellationToken);
 
-                if (fieldSymbolInfo.Symbol != fieldSymbol)
+                if (!SymbolEqualityComparer.Default.Equals(fieldSymbolInfo.Symbol, fieldSymbol))
                 {
                     EnumFieldSymbolInfo fieldSymbolInfo2 = EnumFieldSymbolInfo.Create(fieldSymbol);
 

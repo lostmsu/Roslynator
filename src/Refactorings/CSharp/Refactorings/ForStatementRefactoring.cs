@@ -9,41 +9,41 @@ namespace Roslynator.CSharp.Refactorings
     {
         public static async Task ComputeRefactoringsAsync(RefactoringContext context, ForStatementSyntax forStatement)
         {
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ReplaceForWithForEach)
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ConvertForToForEach)
                 && context.Span.IsEmptyAndContainedInSpanOrBetweenSpans(forStatement)
-                && (await ReplaceForWithForEachRefactoring.CanRefactorAsync(context, forStatement).ConfigureAwait(false)))
+                && (await ConvertForToForEachRefactoring.CanRefactorAsync(context, forStatement).ConfigureAwait(false)))
             {
                 context.RegisterRefactoring(
-                    "Replace for with foreach",
-                    cancellationToken => ReplaceForWithForEachRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
-                    RefactoringIdentifiers.ReplaceForWithForEach);
+                    "Convert to 'foreach'",
+                    cancellationToken => ConvertForToForEachRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
+                    RefactoringIdentifiers.ConvertForToForEach);
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ReplaceForWithWhile)
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ConvertForToWhile)
                 && (context.Span.IsEmptyAndContainedInSpan(forStatement.ForKeyword) || context.Span.IsBetweenSpans(forStatement)))
             {
                 context.RegisterRefactoring(
-                    "Replace for with while",
-                    cancellationToken => ReplaceForWithWhileRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
-                    RefactoringIdentifiers.ReplaceForWithWhile);
+                    "Convert to 'while'",
+                    cancellationToken => ConvertForToWhileRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
+                    RefactoringIdentifiers.ConvertForToWhile);
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ReverseForLoop)
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ReverseForStatement)
                 && context.Span.IsEmptyAndContainedInSpanOrBetweenSpans(forStatement))
             {
-                if (ReverseForLoopRefactoring.CanRefactor(forStatement))
+                if (ReverseForStatementRefactoring.CanRefactor(forStatement))
                 {
                     context.RegisterRefactoring(
-                        "Reverse for loop",
-                        cancellationToken => ReverseForLoopRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
-                        RefactoringIdentifiers.ReverseForLoop);
+                        "Reverse 'for' statement",
+                        cancellationToken => ReverseForStatementRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
+                        RefactoringIdentifiers.ReverseForStatement);
                 }
-                else if (ReverseReversedForLoopRefactoring.CanRefactor(forStatement))
+                else if (ReverseReversedForStatementRefactoring.CanRefactor(forStatement))
                 {
                     context.RegisterRefactoring(
-                        "Reverse for loop",
-                        cancellationToken => ReverseReversedForLoopRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
-                        RefactoringIdentifiers.ReverseForLoop);
+                        "Reverse 'for' statement",
+                        cancellationToken => ReverseReversedForStatementRefactoring.RefactorAsync(context.Document, forStatement, cancellationToken),
+                        RefactoringIdentifiers.ReverseForStatement);
                 }
             }
         }

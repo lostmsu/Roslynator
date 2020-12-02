@@ -3,7 +3,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Roslynator.CSharp.Syntax;
@@ -25,36 +24,28 @@ namespace Roslynator.CSharp.Refactorings
 
         public static bool CanRefactor(MemberDeclarationSyntax member, TextSpan span)
         {
-            switch (member.Kind())
+            switch (member)
             {
-                case SyntaxKind.NamespaceDeclaration:
+                case NamespaceDeclarationSyntax declaration:
                     {
-                        var declaration = (NamespaceDeclarationSyntax)member;
-
                         return declaration.Members.Any()
                             && (declaration.OpenBraceToken.Span.Contains(span)
                                 || declaration.CloseBraceToken.Span.Contains(span));
                     }
-                case SyntaxKind.ClassDeclaration:
+                case ClassDeclarationSyntax declaration:
                     {
-                        var declaration = (ClassDeclarationSyntax)member;
-
                         return declaration.Members.Any()
                             && (declaration.OpenBraceToken.Span.Contains(span)
                                 || declaration.CloseBraceToken.Span.Contains(span));
                     }
-                case SyntaxKind.StructDeclaration:
+                case StructDeclarationSyntax declaration:
                     {
-                        var declaration = (StructDeclarationSyntax)member;
-
                         return declaration.Members.Any()
                             && (declaration.OpenBraceToken.Span.Contains(span)
                                 || declaration.CloseBraceToken.Span.Contains(span));
                     }
-                case SyntaxKind.InterfaceDeclaration:
+                case InterfaceDeclarationSyntax declaration:
                     {
-                        var declaration = (InterfaceDeclarationSyntax)member;
-
                         return declaration.Members.Any()
                             && (declaration.OpenBraceToken.Span.Contains(span)
                                 || declaration.CloseBraceToken.Span.Contains(span));
@@ -67,7 +58,7 @@ namespace Roslynator.CSharp.Refactorings
         public static Task<Document> RefactorAsync(
             Document document,
             MemberDeclarationSyntax member,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             MemberDeclarationListInfo info = SyntaxInfo.MemberDeclarationListInfo(member);
 

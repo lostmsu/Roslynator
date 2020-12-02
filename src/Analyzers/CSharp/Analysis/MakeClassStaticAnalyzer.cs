@@ -23,15 +23,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeClassDeclaration(f), SyntaxKind.ClassDeclaration);
         }
 
-        public static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
             var classDeclaration = (ClassDeclarationSyntax)context.Node;
 
@@ -74,10 +71,6 @@ namespace Roslynator.CSharp.Analysis
 
             bool canBeMadeStatic = walker.CanBeMadeStatic;
 
-            walker.Symbol = null;
-            walker.SemanticModel = null;
-            walker.CancellationToken = default;
-
             MakeClassStaticWalker.Free(walker);
 
             if (canBeMadeStatic)
@@ -86,7 +79,7 @@ namespace Roslynator.CSharp.Analysis
 
         public static bool AnalyzeMembers(ImmutableArray<ISymbol> members)
         {
-            bool areAllImplicitlyDeclared = true;
+            var areAllImplicitlyDeclared = true;
 
             foreach (ISymbol memberSymbol in members)
             {
@@ -178,15 +171,12 @@ namespace Roslynator.CSharp.Analysis
 
             protected override void VisitType(TypeSyntax node)
             {
-                if (node.IsKind(SyntaxKind.IdentifierName))
+                if (node is IdentifierNameSyntax identifierName)
                 {
-                    var identifierName = (IdentifierNameSyntax)node;
-
                     if (string.Equals(Symbol.Name, identifierName.Identifier.ValueText, StringComparison.Ordinal)
-                        && SemanticModel
-                            .GetSymbol(identifierName, CancellationToken)?
-                            .OriginalDefinition
-                            .Equals(Symbol) == true)
+                        && SymbolEqualityComparer.Default.Equals(
+                            SemanticModel.GetSymbol(identifierName, CancellationToken)?.OriginalDefinition,
+                            Symbol))
                     {
                         CanBeMadeStatic = false;
                     }
@@ -203,6 +193,10 @@ namespace Roslynator.CSharp.Analysis
 
                 if (walker != null)
                 {
+                    Debug.Assert(walker.Symbol == null);
+                    Debug.Assert(walker.SemanticModel == null);
+                    Debug.Assert(walker.CancellationToken == default);
+
                     _cachedInstance = null;
                     return walker;
                 }
@@ -212,6 +206,10 @@ namespace Roslynator.CSharp.Analysis
 
             public static void Free(MakeClassStaticWalker walker)
             {
+                walker.Symbol = null;
+                walker.SemanticModel = null;
+                walker.CancellationToken = default;
+
                 _cachedInstance = walker;
             }
         }

@@ -21,6 +21,10 @@ namespace Roslynator.VisualStudio
             DataContext = this;
         }
 
+        public string NameColumnHeaderText { get; set; } = "Id";
+
+        public string TitleColumnHeaderText { get; set; } = "Title";
+
         public string CheckBoxColumnHeaderText { get; set; } = "Enabled";
 
         public string Comment { get; set; }
@@ -70,6 +74,10 @@ namespace Roslynator.VisualStudio
             else
             {
                 string propertyName = columnHeader.Content.ToString();
+
+                if (propertyName != "Id")
+                    propertyName = "Title";
+
                 sortDescriptions.Add(new SortDescription(propertyName, direction));
             }
 
@@ -127,7 +135,7 @@ namespace Roslynator.VisualStudio
         {
             var view = (CollectionView)CollectionViewSource.GetDefaultView(lsvItems.ItemsSource);
 
-            view.Filter = view.Filter ?? FilterItems;
+            view.Filter ??= f => FilterItems(f);
 
             view.Refresh();
         }

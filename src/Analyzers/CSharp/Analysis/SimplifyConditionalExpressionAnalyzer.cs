@@ -1,6 +1,5 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -20,23 +19,20 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeConditionalExpression, SyntaxKind.ConditionalExpression);
+            context.RegisterSyntaxNodeAction(f => AnalyzeConditionalExpression(f), SyntaxKind.ConditionalExpression);
         }
 
-        public static void AnalyzeConditionalExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeConditionalExpression(SyntaxNodeAnalysisContext context)
         {
-            var conditionalExpression = (ConditionalExpressionSyntax)context.Node;
-
             if (context.Node.ContainsDiagnostics)
                 return;
 
             if (context.Node.SpanContainsDirectives())
                 return;
+
+            var conditionalExpression = (ConditionalExpressionSyntax)context.Node;
 
             ConditionalExpressionInfo info = SyntaxInfo.ConditionalExpressionInfo(conditionalExpression);
 
@@ -44,30 +40,53 @@ namespace Roslynator.CSharp.Analysis
                 return;
 
             SyntaxKind trueKind = info.WhenTrue.Kind();
+            SyntaxKind falseKind = info.WhenFalse.Kind();
 
             if (trueKind == SyntaxKind.TrueLiteralExpression)
             {
-                if (context.SemanticModel.GetTypeInfo(info.WhenFalse, context.CancellationToken).ConvertedType?.SpecialType == SpecialType.System_Boolean)
+                // a ? true : false >>> a
+                // a ? true : b >>> a || b
+                if (falseKind == SyntaxKind.FalseLiteralExpression
+                    || context.SemanticModel.GetTypeInfo(info.WhenFalse, context.CancellationToken).ConvertedType?.SpecialType == SpecialType.System_Boolean)
                 {
-                    DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.SimplifyConditionalExpression, conditionalExpression);
+                    ReportDiagnostic();
                 }
             }
-            else
+            else if (trueKind == SyntaxKind.FalseLiteralExpression)
             {
-                SyntaxKind falseKind = info.WhenFalse.Kind();
+                /// a ? false : true >>> !a
+                if (falseKind == SyntaxKind.TrueLiteralExpression)
+                {
+                    ReportDiagnostic();
+                }
+                /// a ? false : b >>> !a && b
+                else if (!context.IsAnalyzerSuppressed(AnalyzerOptions.SimplifyConditionalExpressionWhenItIncludesNegationOfCondition)
+                    && context.SemanticModel.GetTypeInfo(info.WhenFalse, context.CancellationToken).ConvertedType?.SpecialType == SpecialType.System_Boolean)
+                {
+                    ReportDiagnostic();
+                }
+            }
+            else if (falseKind == SyntaxKind.TrueLiteralExpression)
+            {
+                // a ? b : true >>> !a || b
+                if (!context.IsAnalyzerSuppressed(AnalyzerOptions.SimplifyConditionalExpressionWhenItIncludesNegationOfCondition)
+                    && context.SemanticModel.GetTypeInfo(info.WhenTrue, context.CancellationToken).ConvertedType?.SpecialType == SpecialType.System_Boolean)
+                {
+                    ReportDiagnostic();
+                }
+            }
+            else if (falseKind == SyntaxKind.FalseLiteralExpression)
+            {
+                // a ? b : false >>> a && b
+                if (context.SemanticModel.GetTypeInfo(info.WhenTrue, context.CancellationToken).ConvertedType?.SpecialType == SpecialType.System_Boolean)
+                {
+                    ReportDiagnostic();
+                }
+            }
 
-                if (falseKind == SyntaxKind.FalseLiteralExpression)
-                {
-                    if (context.SemanticModel.GetTypeInfo(info.WhenTrue, context.CancellationToken).ConvertedType?.SpecialType == SpecialType.System_Boolean)
-                    {
-                        DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.SimplifyConditionalExpression, conditionalExpression);
-                    }
-                }
-                else if (trueKind == SyntaxKind.FalseLiteralExpression
-                    && falseKind == SyntaxKind.TrueLiteralExpression)
-                {
-                    DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.SimplifyConditionalExpression, conditionalExpression);
-                }
+            void ReportDiagnostic()
+            {
+                DiagnosticHelpers.ReportDiagnosticIfNotSuppressed(context, DiagnosticDescriptors.SimplifyConditionalExpression, conditionalExpression);
             }
         }
     }

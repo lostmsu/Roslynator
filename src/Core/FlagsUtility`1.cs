@@ -98,7 +98,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<sbyte>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(sbyte value)
@@ -160,7 +160,7 @@ namespace Roslynator
                 if (reservedValues == null)
                     throw new ArgumentNullException(nameof(reservedValues));
 
-                byte[] values = reservedValues.Where(IsZeroOrPowerOfTwo).ToArray();
+                byte[] values = reservedValues.Where(f => IsZeroOrPowerOfTwo(f)).ToArray();
 
                 if (values.Length == 0)
                     return 0;
@@ -190,7 +190,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<byte>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(byte value)
@@ -282,7 +282,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<short>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(short value)
@@ -344,7 +344,7 @@ namespace Roslynator
                 if (reservedValues == null)
                     throw new ArgumentNullException(nameof(reservedValues));
 
-                ushort[] values = reservedValues.Where(IsZeroOrPowerOfTwo).ToArray();
+                ushort[] values = reservedValues.Where(f => IsZeroOrPowerOfTwo(f)).ToArray();
 
                 if (values.Length == 0)
                     return 0;
@@ -374,7 +374,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<ushort>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(ushort value)
@@ -466,7 +466,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<int>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(int value)
@@ -528,7 +528,7 @@ namespace Roslynator
                 if (reservedValues == null)
                     throw new ArgumentNullException(nameof(reservedValues));
 
-                uint[] values = reservedValues.Where(IsZeroOrPowerOfTwo).ToArray();
+                uint[] values = reservedValues.Where(f => IsZeroOrPowerOfTwo(f)).ToArray();
 
                 if (values.Length == 0)
                     return 0;
@@ -558,7 +558,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<uint>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(uint value)
@@ -650,7 +650,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<long>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(long value)
@@ -712,7 +712,7 @@ namespace Roslynator
                 if (reservedValues == null)
                     throw new ArgumentNullException(nameof(reservedValues));
 
-                ulong[] values = reservedValues.Where(IsZeroOrPowerOfTwo).ToArray();
+                ulong[] values = reservedValues.Where(f => IsZeroOrPowerOfTwo(f)).ToArray();
 
                 if (values.Length == 0)
                     return 0;
@@ -742,7 +742,7 @@ namespace Roslynator
                     }
                 }
 
-                return default(Optional<ulong>);
+                return default;
             }
 
             public override bool IsZeroOrPowerOfTwo(ulong value)

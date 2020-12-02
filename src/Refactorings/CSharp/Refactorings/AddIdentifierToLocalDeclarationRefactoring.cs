@@ -97,24 +97,23 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             TypeSyntax type,
             string name,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SyntaxTrivia endOfLine = type.GetTrailingTrivia()
                 .SkipWhile(f => f.IsWhitespaceTrivia())
                 .First();
 
-            TextSpan span = TextSpan.FromBounds(type.Span.End, endOfLine.SpanStart);
-
-            var textChange = new TextChange(span, " " + name);
-
-            return document.WithTextChangeAsync(textChange, cancellationToken);
+            return document.WithTextChangeAsync(
+                TextSpan.FromBounds(type.Span.End, endOfLine.SpanStart),
+                " " + name,
+                cancellationToken);
         }
 
         private static Task<Document> RefactorAsync(
             Document document,
             ExpressionStatementSyntax expressionStatement,
             string name,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             LocalDeclarationStatementSyntax newNode = LocalDeclarationStatement(
                 VariableDeclaration(

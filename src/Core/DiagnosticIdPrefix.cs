@@ -39,6 +39,10 @@ namespace Roslynator
                         {
                             return BC;
                         }
+                        else if (HasPrefix(BL))
+                        {
+                            return BL;
+                        }
 
                         break;
                     }
@@ -94,6 +98,19 @@ namespace Roslynator
                         else if (HasPrefix(RS))
                         {
                             return RS;
+                        }
+
+                        break;
+                    }
+                case 'S':
+                    {
+                        if (HasPrefix(SA))
+                        {
+                            return SA;
+                        }
+                        else if (HasPrefix(SX))
+                        {
+                            return SX;
                         }
 
                         break;

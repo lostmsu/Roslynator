@@ -6,11 +6,12 @@ using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Roslynator.CSharp.Analysis.UsePatternMatching;
 using Roslynator.CSharp.CodeFixes;
+using Roslynator.CSharp.Testing;
 using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1221UsePatternMatchingInsteadOfAsAndNullCheckTests : AbstractCSharpCodeFixVerifier
+    public class RCS1221UsePatternMatchingInsteadOfAsAndNullCheckTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.UsePatternMatchingInsteadOfAsAndNullCheck;
 
@@ -29,6 +30,7 @@ class C
         object x = null;
 
         [|var s = x as string;|]
+
         if (s == null)
         {
             return;
@@ -314,6 +316,26 @@ class C
     }
 }
 ");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UsePatternMatchingInsteadOfAsAndNullCheck)]
+        public async Task TestNoDiagnostic_LanguageVersion()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M()
+    {
+        object x = null;
+
+        var s = x as string;
+        if (s == null)
+        {
+            return;
+        }
+    }
+}
+", options: CSharpCodeVerificationOptions.Default_CSharp6);
         }
     }
 }

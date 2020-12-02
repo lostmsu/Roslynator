@@ -20,15 +20,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeSwitchSection, SyntaxKind.SwitchSection);
+            context.RegisterSyntaxNodeAction(f => AnalyzeSwitchSection(f), SyntaxKind.SwitchSection);
         }
 
-        public static void AnalyzeSwitchSection(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeSwitchSection(SyntaxNodeAnalysisContext context)
         {
             var switchSection = (SwitchSectionSyntax)context.Node;
 
@@ -51,7 +48,8 @@ namespace Roslynator.CSharp.Analysis
 
                     if (!switchSection.ContainsDirectives(span))
                     {
-                        DiagnosticHelpers.ReportDiagnostic(context,
+                        DiagnosticHelpers.ReportDiagnostic(
+                            context,
                             DiagnosticDescriptors.DefaultLabelShouldBeLastLabelInSwitchSection,
                             label);
 

@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1036RemoveRedundantEmptyLineTests : AbstractCSharpCodeFixVerifier
+    public class RCS1036RemoveRedundantEmptyLineTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.RemoveRedundantEmptyLine;
 
@@ -198,6 +198,85 @@ class C
         }
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveRedundantEmptyLine)]
+        public async Task Test_EmptyLineAfterDocComment()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    /// <summary></summary>
+[|
+|]    void M()
+    {
+    }
+}
+", @"
+class C
+{
+    /// <summary></summary>
+    void M()
+    {
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveRedundantEmptyLine)]
+        public async Task Test_EmptyLineBetweenClosingBraceAndSwitchSection()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    void M()
+    {
+        string x = null;
+
+        switch (x)
+        {
+            case ""a"":
+                {
+                    M();
+                    break;
+                }
+[|
+|]            case ""b"":
+                {
+                    M();
+                    break;
+                }
+[|
+|]            case ""c"":
+                break;
+        }
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        string x = null;
+
+        switch (x)
+        {
+            case ""a"":
+                {
+                    M();
+                    break;
+                }
+            case ""b"":
+                {
+                    M();
+                    break;
+                }
+            case ""c"":
+                break;
+        }
+    }
+}
+", options: Options.WithEnabled(AnalyzerOptions.RemoveEmptyLineBetweenClosingBraceAndSwitchSection));
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveRedundantEmptyLine)]
         public async Task TestNoDiagnostic_ObjectInitializer()
         {
             await VerifyNoDiagnosticAsync(@"
@@ -244,6 +323,32 @@ class C
     void M()
     {
         var x = new C() { };
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveRedundantEmptyLine)]
+        public async Task TestNoDiagnostic_EmptyLineBetweenClosingBraceAndSwitchSection()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M()
+    {
+        string x = null;
+
+        switch (x)
+        {
+            case ""a"":
+                {
+                    M();
+                    break;
+                }
+
+            case ""b"":
+                break;
+        }
     }
 }
 ");

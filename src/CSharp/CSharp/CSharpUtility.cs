@@ -15,7 +15,7 @@ namespace Roslynator.CSharp
         public static string GetCountOrLengthPropertyName(
             ExpressionSyntax expression,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ITypeSymbol typeSymbol = semanticModel.GetTypeSymbol(expression, cancellationToken);
 
@@ -29,7 +29,7 @@ namespace Roslynator.CSharp
             SyntaxNode node,
             INamespaceSymbol namespaceSymbol,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (node == null)
                 throw new ArgumentNullException(nameof(node));
@@ -42,12 +42,10 @@ namespace Roslynator.CSharp
 
             foreach (SyntaxNode ancestor in node.Ancestors())
             {
-                switch (ancestor.Kind())
+                switch (ancestor)
                 {
-                    case SyntaxKind.NamespaceDeclaration:
+                    case NamespaceDeclarationSyntax namespaceDeclaration:
                         {
-                            var namespaceDeclaration = (NamespaceDeclarationSyntax)ancestor;
-
                             if (IsNamespace(namespaceSymbol, namespaceDeclaration.Name, semanticModel, cancellationToken)
                                 || IsNamespace(namespaceSymbol, namespaceDeclaration.Usings, semanticModel, cancellationToken))
                             {
@@ -56,10 +54,8 @@ namespace Roslynator.CSharp
 
                             break;
                         }
-                    case SyntaxKind.CompilationUnit:
+                    case CompilationUnitSyntax compilationUnit:
                         {
-                            var compilationUnit = (CompilationUnitSyntax)ancestor;
-
                             if (IsNamespace(namespaceSymbol, compilationUnit.Usings, semanticModel, cancellationToken))
                                 return true;
 
@@ -130,7 +126,7 @@ namespace Roslynator.CSharp
             SyntaxNode node,
             INamedTypeSymbol staticClassSymbol,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (node == null)
                 throw new ArgumentNullException(nameof(node));
@@ -150,7 +146,7 @@ namespace Roslynator.CSharp
                         NameSyntax name = usingDirective.Name;
 
                         if (name != null
-                            && staticClassSymbol.Equals(semanticModel.GetSymbol(name, cancellationToken)))
+                            && SymbolEqualityComparer.Default.Equals(staticClassSymbol, semanticModel.GetSymbol(name, cancellationToken)))
                         {
                             return true;
                         }
@@ -164,7 +160,7 @@ namespace Roslynator.CSharp
         public static bool IsEmptyStringExpression(
             ExpressionSyntax expression,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (expression == null)
                 throw new ArgumentNullException(nameof(expression));
@@ -219,7 +215,7 @@ namespace Roslynator.CSharp
         public static bool IsNameOfExpression(
             SyntaxNode node,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return node.IsKind(SyntaxKind.InvocationExpression)
                 && IsNameOfExpression((InvocationExpressionSyntax)node, semanticModel, cancellationToken);
@@ -228,7 +224,7 @@ namespace Roslynator.CSharp
         public static bool IsNameOfExpression(
             InvocationExpressionSyntax invocationExpression,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ExpressionSyntax expression = invocationExpression.Expression;
 
@@ -246,7 +242,7 @@ namespace Roslynator.CSharp
             return false;
         }
 
-        public static bool IsStringConcatenation(BinaryExpressionSyntax addExpression, SemanticModel semanticModel, CancellationToken cancellationToken = default(CancellationToken))
+        public static bool IsStringConcatenation(BinaryExpressionSyntax addExpression, SemanticModel semanticModel, CancellationToken cancellationToken = default)
         {
             return addExpression.Kind() == SyntaxKind.AddExpression
                 && SymbolUtility.IsStringAdditionOperator(semanticModel.GetMethodSymbol(addExpression, cancellationToken));
@@ -326,19 +322,19 @@ namespace Roslynator.CSharp
                 case SyntaxKind.EventDeclaration:
                     return ((EventDeclarationSyntax)node).Identifier;
                 case SyntaxKind.EventFieldDeclaration:
-                    return ((EventFieldDeclarationSyntax)node).Declaration?.Variables.FirstOrDefault()?.Identifier ?? default(SyntaxToken);
+                    return ((EventFieldDeclarationSyntax)node).Declaration?.Variables.FirstOrDefault()?.Identifier ?? default;
                 case SyntaxKind.FieldDeclaration:
-                    return ((FieldDeclarationSyntax)node).Declaration?.Variables.FirstOrDefault()?.Identifier ?? default(SyntaxToken);
+                    return ((FieldDeclarationSyntax)node).Declaration?.Variables.FirstOrDefault()?.Identifier ?? default;
                 case SyntaxKind.VariableDeclarator:
                     return ((VariableDeclaratorSyntax)node).Identifier;
             }
 
-            return default(SyntaxToken);
+            return default;
         }
 
-        public static bool IsPartOfExpressionThatMustBeConstant(LiteralExpressionSyntax literalExpression)
+        public static bool IsPartOfExpressionThatMustBeConstant(ExpressionSyntax expression)
         {
-            for (SyntaxNode parent = literalExpression.Parent; parent != null; parent = parent.Parent)
+            for (SyntaxNode parent = expression.Parent; parent != null; parent = parent.Parent)
             {
                 switch (parent.Kind())
                 {
@@ -402,6 +398,33 @@ namespace Roslynator.CSharp
                     case SyntaxKind.UnknownAccessorDeclaration:
                     case SyntaxKind.IncompleteMember:
                         return false;
+#if DEBUG
+                    default:
+                        {
+                            if (parent is ExpressionSyntax)
+                                break;
+
+                            switch (parent.Kind())
+                            {
+                                case SyntaxKind.Argument:
+                                case SyntaxKind.ArgumentList:
+                                case SyntaxKind.EqualsValueClause:
+                                case SyntaxKind.Interpolation:
+                                case SyntaxKind.VariableDeclaration:
+                                case SyntaxKind.VariableDeclarator:
+                                    {
+                                        break;
+                                    }
+                                default:
+                                    {
+                                        Debug.Fail(parent.Kind().ToString());
+                                        break;
+                                    }
+                            }
+
+                            break;
+                        }
+#endif
                 }
             }
 
@@ -439,7 +462,7 @@ namespace Roslynator.CSharp
                 yield return e;
             }
 
-            ExpressionSyntax GetLastChild(SyntaxNode node)
+            static ExpressionSyntax GetLastChild(SyntaxNode node)
             {
                 switch (node?.Kind())
                 {
@@ -458,7 +481,7 @@ namespace Roslynator.CSharp
                 return null;
             }
 
-            SyntaxNode GetPreviousSibling(SyntaxNode node)
+            static SyntaxNode GetPreviousSibling(SyntaxNode node)
             {
                 SyntaxNode parent = node.Parent;
 
@@ -487,7 +510,7 @@ namespace Roslynator.CSharp
                 return null;
             }
 
-            bool IsFirstChild(SyntaxNode node)
+            static bool IsFirstChild(SyntaxNode node)
             {
                 SyntaxNode parent = node.Parent;
 
@@ -547,18 +570,22 @@ namespace Roslynator.CSharp
                     case SyntaxKind.ElementAccessExpression:
                     case SyntaxKind.InvocationExpression:
                         {
-                            prev = parent;
-                            continue;
+                            break;
                         }
                     case SyntaxKind.ConditionalAccessExpression:
                         {
-                            return ((ConditionalAccessExpressionSyntax)parent).WhenNotNull == prev;
+                            if (((ConditionalAccessExpressionSyntax)parent).WhenNotNull == prev)
+                                return true;
+
+                            break;
                         }
                     default:
                         {
                             return false;
                         }
                 }
+
+                prev = parent;
             }
 
             return false;
@@ -596,7 +623,7 @@ namespace Roslynator.CSharp
                 }
             }
 
-            return default(IFieldSymbol);
+            return default;
         }
 
         public static TypeSyntax GetTypeOrReturnType(SyntaxNode node)
@@ -626,26 +653,22 @@ namespace Roslynator.CSharp
             }
         }
 
-        public static bool ContainsOutArgumentWithLocal(
+        public static bool ContainsOutArgumentWithLocalOrParameter(
             ExpressionSyntax expression,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             foreach (SyntaxNode node in expression.DescendantNodes())
             {
-                if (node.Kind() == SyntaxKind.Argument)
+                if (node is ArgumentSyntax argument
+                    && argument.RefOrOutKeyword.Kind() == SyntaxKind.OutKeyword)
                 {
-                    var argument = (ArgumentSyntax)node;
+                    ExpressionSyntax argumentExpression = argument.Expression;
 
-                    if (argument.RefOrOutKeyword.Kind() == SyntaxKind.OutKeyword)
+                    if (argumentExpression?.IsMissing == false
+                        && semanticModel.GetSymbol(argumentExpression, cancellationToken)?.IsKind(SymbolKind.Local, SymbolKind.Parameter) == true)
                     {
-                        ExpressionSyntax argumentExpression = argument.Expression;
-
-                        if (argumentExpression?.IsMissing == false
-                            && semanticModel.GetSymbol(argumentExpression, cancellationToken)?.Kind == SymbolKind.Local)
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
             }

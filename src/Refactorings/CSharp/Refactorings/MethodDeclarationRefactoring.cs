@@ -12,6 +12,7 @@ using Roslynator.CSharp.Refactorings.Interop;
 using Roslynator.CSharp.Refactorings.MakeMemberAbstract;
 using Roslynator.CSharp.Refactorings.MakeMemberVirtual;
 using Roslynator.CSharp.Refactorings.ReplaceMethodWithProperty;
+using Microsoft.CodeAnalysis.CodeActions;
 
 namespace Roslynator.CSharp.Refactorings
 {
@@ -38,18 +39,18 @@ namespace Roslynator.CSharp.Refactorings
                     RefactoringIdentifiers.ReplaceMethodWithProperty);
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.UseExpressionBodiedMember)
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ConvertBlockBodyToExpressionBody)
                 && context.SupportsCSharp6
-                && UseExpressionBodiedMemberRefactoring.CanRefactor(methodDeclaration, context.Span))
+                && ConvertBlockBodyToExpressionBodyRefactoring.CanRefactor(methodDeclaration, context.Span))
             {
                 context.RegisterRefactoring(
-                    UseExpressionBodiedMemberRefactoring.Title,
-                    cancellationToken => UseExpressionBodiedMemberRefactoring.RefactorAsync(context.Document, methodDeclaration, cancellationToken),
-                    RefactoringIdentifiers.UseExpressionBodiedMember);
+                    ConvertBlockBodyToExpressionBodyRefactoring.Title,
+                    cancellationToken => ConvertBlockBodyToExpressionBodyRefactoring.RefactorAsync(context.Document, methodDeclaration, cancellationToken),
+                    RefactoringIdentifiers.ConvertBlockBodyToExpressionBody);
             }
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.MakeMemberAbstract)
-                && methodDeclaration.HeaderSpan().Contains(context.Span))
+                && context.Span.IsEmptyAndContainedInSpan(methodDeclaration.Identifier))
             {
                 MakeMethodAbstractRefactoring.ComputeRefactoring(context, methodDeclaration);
             }
@@ -70,6 +71,19 @@ namespace Roslynator.CSharp.Refactorings
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.RenameMethodAccordingToTypeName))
                 await RenameMethodAccoringToTypeNameAsync(context, methodDeclaration).ConfigureAwait(false);
+
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.AddParameterToInterfaceMember)
+                && context.Span.IsEmptyAndContainedInSpanOrBetweenSpans(methodDeclaration.Identifier))
+            {
+                SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
+
+                foreach (CodeAction codeAction in AddParameterToInterfaceMemberRefactoring.ComputeRefactoringForImplicitImplementation(
+                    new CommonFixContext(context.Document, RefactoringIdentifiers.AddParameterToInterfaceMember, semanticModel, context.CancellationToken),
+                    methodDeclaration))
+                {
+                    context.RegisterRefactoring(codeAction);
+                }
+            }
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.AddMemberToInterface)
                 && context.Span.IsEmptyAndContainedInSpanOrBetweenSpans(methodDeclaration.Identifier))
@@ -135,7 +149,8 @@ namespace Roslynator.CSharp.Refactorings
                 newName,
                 methodSymbol,
                 context.Solution,
-                cancellationToken: context.CancellationToken).ConfigureAwait(false))
+                cancellationToken: context.CancellationToken)
+                .ConfigureAwait(false))
             {
                 return;
             }
@@ -149,7 +164,7 @@ namespace Roslynator.CSharp.Refactorings
         private static ITypeSymbol GetType(
             TypeSyntax returnType,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ITypeSymbol returnTypeSymbol = semanticModel.GetTypeSymbol(returnType, cancellationToken);
 

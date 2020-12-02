@@ -1,7 +1,5 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -11,14 +9,14 @@ using static Roslynator.CSharp.Syntax.SyntaxInfoHelpers;
 namespace Roslynator.CSharp.Syntax
 {
     [DebuggerDisplay("{DebuggerDisplay,nq}")]
-    internal readonly struct ParameterInfo : IEquatable<ParameterInfo>
+    internal readonly struct ParameterInfo
     {
         public ParameterInfo(ParameterSyntax parameter, CSharpSyntaxNode body)
         {
             Parameter = parameter;
-            ParameterList = default(BaseParameterListSyntax);
+            ParameterList = default;
             Body = body;
-            TypeParameterList = default(TypeParameterListSyntax);
+            TypeParameterList = default;
         }
 
         public ParameterInfo(BaseParameterListSyntax parameterList, CSharpSyntaxNode body)
@@ -29,7 +27,7 @@ namespace Roslynator.CSharp.Syntax
         public ParameterInfo(BaseParameterListSyntax parameterList, TypeParameterListSyntax typeParameterList, CSharpSyntaxNode body)
         {
             ParameterList = parameterList;
-            Parameter = default(ParameterSyntax);
+            Parameter = default;
             Body = body;
             TypeParameterList = typeParameterList;
         }
@@ -43,7 +41,7 @@ namespace Roslynator.CSharp.Syntax
 
         public SeparatedSyntaxList<TypeParameterSyntax> TypeParameters
         {
-            get { return TypeParameterList?.Parameters ?? default(SeparatedSyntaxList<TypeParameterSyntax>); }
+            get { return TypeParameterList?.Parameters ?? default; }
         }
 
         public ParameterSyntax Parameter { get; }
@@ -52,7 +50,7 @@ namespace Roslynator.CSharp.Syntax
 
         public SeparatedSyntaxList<ParameterSyntax> Parameters
         {
-            get { return ParameterList?.Parameters ?? default(SeparatedSyntaxList<ParameterSyntax>); }
+            get { return ParameterList?.Parameters ?? default; }
         }
 
         public CSharpSyntaxNode Body { get; }
@@ -96,7 +94,7 @@ namespace Roslynator.CSharp.Syntax
                 return default;
 
             TypeParameterListSyntax typeParameterList = methodDeclaration.TypeParameterList;
-            SeparatedSyntaxList<TypeParameterSyntax> typeParameters = typeParameterList?.Parameters ?? default(SeparatedSyntaxList<TypeParameterSyntax>);
+            SeparatedSyntaxList<TypeParameterSyntax> typeParameters = typeParameterList?.Parameters ?? default;
 
             if (!CheckTypeParameters(typeParameters, allowMissing))
                 return default;
@@ -158,7 +156,7 @@ namespace Roslynator.CSharp.Syntax
                 return default;
 
             TypeParameterListSyntax typeParameterList = delegateDeclaration.TypeParameterList;
-            SeparatedSyntaxList<TypeParameterSyntax> typeParameters = typeParameterList?.Parameters ?? default(SeparatedSyntaxList<TypeParameterSyntax>);
+            SeparatedSyntaxList<TypeParameterSyntax> typeParameters = typeParameterList?.Parameters ?? default;
 
             if (!CheckTypeParameters(typeParameters, allowMissing))
                 return default;
@@ -185,7 +183,7 @@ namespace Roslynator.CSharp.Syntax
                 return default;
 
             TypeParameterListSyntax typeParameterList = localFunction.TypeParameterList;
-            SeparatedSyntaxList<TypeParameterSyntax> typeParameters = typeParameterList?.Parameters ?? default(SeparatedSyntaxList<TypeParameterSyntax>);
+            SeparatedSyntaxList<TypeParameterSyntax> typeParameters = typeParameterList?.Parameters ?? default;
 
             if (!CheckTypeParameters(typeParameters, allowMissing))
                 return default;
@@ -303,36 +301,6 @@ namespace Roslynator.CSharp.Syntax
             }
 
             return true;
-        }
-
-        public override string ToString()
-        {
-            return Node?.ToString() ?? "";
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is ParameterInfo other && Equals(other);
-        }
-
-        public bool Equals(ParameterInfo other)
-        {
-            return EqualityComparer<SyntaxNode>.Default.Equals(Node, other.Node);
-        }
-
-        public override int GetHashCode()
-        {
-            return EqualityComparer<SyntaxNode>.Default.GetHashCode(Node);
-        }
-
-        public static bool operator ==(in ParameterInfo info1, in ParameterInfo info2)
-        {
-            return info1.Equals(info2);
-        }
-
-        public static bool operator !=(in ParameterInfo info1, in ParameterInfo info2)
-        {
-            return !(info1 == info2);
         }
     }
 }

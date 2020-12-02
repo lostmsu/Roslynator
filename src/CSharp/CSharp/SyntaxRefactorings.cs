@@ -212,22 +212,139 @@ namespace Roslynator.CSharp
             return node.RemoveNode(documentationComment, SyntaxRemoveOptions.KeepNoTrivia);
         }
 
-        public static TNode RemoveComments<TNode>(TNode node, CommentKinds kinds) where TNode : SyntaxNode
+        public static TNode RemoveComments<TNode>(TNode node, CommentFilter comments) where TNode : SyntaxNode
         {
             if (node == null)
                 throw new ArgumentNullException(nameof(node));
 
-            return RemoveComments(node, node.FullSpan, kinds);
+            return RemoveComments(node, node.FullSpan, comments);
         }
 
-        public static TNode RemoveComments<TNode>(TNode node, TextSpan span, CommentKinds kinds) where TNode : SyntaxNode
+        public static TNode RemoveComments<TNode>(TNode node, TextSpan span, CommentFilter comments) where TNode : SyntaxNode
         {
             if (node == null)
                 throw new ArgumentNullException(nameof(node));
 
-            var remover = new CommentRemover(node, kinds, span);
+            List<SyntaxTrivia> commentsToRemove = null;
 
-            return (TNode)remover.Visit(node);
+            foreach (SyntaxTrivia trivia in node.DescendantTrivia(span, descendIntoTrivia: true))
+            {
+                if (span.Contains(trivia.Span))
+                {
+                    switch (trivia.Kind())
+                    {
+                        case SyntaxKind.SingleLineCommentTrivia:
+                            {
+                                if ((comments & CommentFilter.SingleLine) == 0)
+                                    break;
+
+                                AddTrivia(trivia);
+
+                                SyntaxTriviaList triviaList = trivia.GetContainingList();
+
+                                int index = triviaList.IndexOf(trivia);
+
+                                if (index > 0)
+                                {
+                                    SyntaxTrivia previousTrivia = triviaList[index - 1];
+
+                                    if (previousTrivia.IsKind(SyntaxKind.WhitespaceTrivia))
+                                        AddTrivia(previousTrivia);
+                                }
+
+                                if (index < triviaList.Count - 1)
+                                {
+                                    SyntaxTrivia nextTrivia = triviaList[index + 1];
+
+                                    if (nextTrivia.IsKind(SyntaxKind.EndOfLineTrivia))
+                                        AddTrivia(nextTrivia);
+                                }
+
+                                break;
+                            }
+                        case SyntaxKind.SingleLineDocumentationCommentTrivia:
+                            {
+                                if ((comments & CommentFilter.SingleLineDocumentation) == 0)
+                                    break;
+
+                                AddTrivia(trivia);
+
+                                SyntaxTriviaList triviaList = trivia.GetContainingList();
+
+                                int index = triviaList.IndexOf(trivia);
+
+                                if (index > 0)
+                                {
+                                    SyntaxTrivia previousTrivia = triviaList[index - 1];
+
+                                    if (previousTrivia.IsKind(SyntaxKind.WhitespaceTrivia))
+                                        AddTrivia(previousTrivia);
+                                }
+
+                                break;
+                            }
+                        case SyntaxKind.MultiLineCommentTrivia:
+                            {
+                                if ((comments & CommentFilter.MultiLine) != 0)
+                                    RemoveMultiline(trivia);
+
+                                break;
+                            }
+                        case SyntaxKind.MultiLineDocumentationCommentTrivia:
+                            {
+                                if ((comments & CommentFilter.MultiLineDocumentation) != 0)
+                                    RemoveMultiline(trivia);
+
+                                break;
+                            }
+                    }
+                }
+            }
+
+            return (commentsToRemove != null)
+                ? node.ReplaceTrivia(commentsToRemove, (f, _) => EmptyWhitespace())
+                : node;
+
+            void AddTrivia(SyntaxTrivia trivia)
+            {
+                (commentsToRemove ??= new List<SyntaxTrivia>()).Add(trivia);
+            }
+
+            void RemoveMultiline(SyntaxTrivia trivia)
+            {
+                AddTrivia(trivia);
+
+                SyntaxTriviaList triviaList = trivia.GetContainingList();
+
+                int index = triviaList.IndexOf(trivia);
+
+                if (index > 0)
+                {
+                    SyntaxTrivia previousTrivia = triviaList[index - 1];
+
+                    if (previousTrivia.IsKind(SyntaxKind.WhitespaceTrivia))
+                        AddTrivia(previousTrivia);
+                }
+
+                if (index < triviaList.Count - 1)
+                {
+                    SyntaxTrivia nextTrivia = triviaList[index + 1];
+
+                    if (nextTrivia.IsKind(SyntaxKind.WhitespaceTrivia))
+                    {
+                        index++;
+                        AddTrivia(nextTrivia);
+                    }
+                }
+
+                if (index < triviaList.Count - 1)
+                {
+                    SyntaxTrivia nextTrivia = triviaList[index + 1];
+
+                    if (nextTrivia.IsKind(SyntaxKind.EndOfLineTrivia))
+                        AddTrivia(nextTrivia);
+                }
+            }
         }
 
         public static TNode RemoveTrivia<TNode>(TNode node, TextSpan? span = null) where TNode : SyntaxNode
@@ -446,6 +563,149 @@ namespace Roslynator.CSharp
                         newName,
                         simpleName.GetTrailingTrivia()));
             }
+        }
+
+        public static LiteralExpressionSyntax ReplaceStringLiteralWithCharacterLiteral(LiteralExpressionSyntax literalExpression)
+        {
+            return (LiteralExpressionSyntax)ParseExpression($"'{GetCharacterLiteralText()}'")
+                .WithTriviaFrom(literalExpression);
+
+            string GetCharacterLiteralText()
+            {
+                string s = literalExpression.Token.ValueText;
+
+                switch (s[0])
+                {
+                    case '\'':
+                        return @"\'";
+                    case '\"':
+                        return @"\""";
+                    case '\\':
+                        return @"\\";
+                    case '\0':
+                        return @"\0";
+                    case '\a':
+                        return @"\a";
+                    case '\b':
+                        return @"\b";
+                    case '\f':
+                        return @"\f";
+                    case '\n':
+                        return @"\n";
+                    case '\r':
+                        return @"\r";
+                    case '\t':
+                        return @"\t";
+                    case '\v':
+                        return @"\v";
+                    default:
+                        return s;
+                }
+            }
+        }
+
+        public static ForStatementSyntax ConvertWhileStatementToForStatement(
+            WhileStatementSyntax whileStatement,
+            VariableDeclarationSyntax declaration = default,
+            SeparatedSyntaxList<ExpressionSyntax> initializers = default)
+        {
+            var incrementors = default(SeparatedSyntaxList<ExpressionSyntax>);
+
+            StatementSyntax statement = whileStatement.Statement;
+
+            if (statement is BlockSyntax block)
+            {
+                SyntaxList<StatementSyntax> statements = block.Statements;
+
+                if (statements.Any())
+                {
+                    int startIndex = -1;
+                    int i = statements.Count - 1;
+
+                    bool fContinue = statements.Last().IsKind(SyntaxKind.ContinueStatement);
+
+                    if (fContinue)
+                        i--;
+
+                    while (i >= 0)
+                    {
+                        if (!(statements[i] is ExpressionStatementSyntax expressionStatement))
+                            break;
+
+                        ExpressionSyntax expression = expressionStatement.Expression;
+
+                        if (expression == null
+                            || !CSharpFacts.IsIncrementOrDecrementExpression(expression.Kind()))
+                        {
+                            break;
+                        }
+
+                        startIndex = i;
+                        i--;
+                    }
+
+                    if (startIndex >= 0)
+                    {
+                        int count = statements.Count - startIndex;
+
+                        if (fContinue)
+                            count--;
+
+                        incrementors = statements
+                            .Skip(startIndex)
+                            .Take(count)
+                            .Cast<ExpressionStatementSyntax>()
+                            .Select(f => f.Expression)
+                            .ToSeparatedSyntaxList();
+
+                        statement = block.WithStatements(statements.RemoveRange(startIndex, statements.Count - startIndex));
+                    }
+                    else if (fContinue)
+                    {
+                        statement = block.WithStatements(statements.RemoveAt(statements.Count - 1));
+                    }
+                }
+            }
+
+            ExpressionSyntax condition = whileStatement.Condition;
+
+            if (condition.IsKind(SyntaxKind.TrueLiteralExpression))
+                condition = null;
+
+            return ForStatement(
+                forKeyword: Token(SyntaxKind.ForKeyword).WithTriviaFrom(whileStatement.WhileKeyword),
+                openParenToken: Token(whileStatement.OpenParenToken.LeadingTrivia, SyntaxKind.OpenParenToken, default),
+                declaration: declaration,
+                initializers: initializers,
+                firstSemicolonToken: SemicolonToken(),
+                condition: condition,
+                secondSemicolonToken: SemicolonToken(),
+                incrementors: incrementors,
+                closeParenToken: Token(default, SyntaxKind.CloseParenToken, whileStatement.CloseParenToken.TrailingTrivia),
+                statement: statement);
+        }
+
+        public static BinaryExpressionSyntax SwapBinaryOperands(BinaryExpressionSyntax binaryExpression)
+        {
+            ExpressionSyntax left = binaryExpression.Left;
+            ExpressionSyntax right = binaryExpression.Right;
+            SyntaxToken token = binaryExpression.OperatorToken;
+
+            SyntaxKind tokenKind = token.Kind();
+
+            SyntaxKind newTokenKind = tokenKind switch
+            {
+                SyntaxKind.LessThanToken => SyntaxKind.GreaterThanToken,
+                SyntaxKind.LessThanEqualsToken => SyntaxKind.GreaterThanEqualsToken,
+                SyntaxKind.GreaterThanToken => SyntaxKind.LessThanToken,
+                SyntaxKind.GreaterThanEqualsToken => SyntaxKind.LessThanEqualsToken,
+                _ => tokenKind,
+            };
+
+            return binaryExpression.Update(
+                left: right.WithTriviaFrom(left),
+                operatorToken: Token(token.LeadingTrivia, newTokenKind, token.TrailingTrivia),
+                right: left.WithTriviaFrom(right));
         }
     }
 }

@@ -31,13 +31,6 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsAnyEnabled(
-                CodeFixIdentifiers.InitializeLocalVariableWithDefaultValue,
-                CodeFixIdentifiers.AddVariableType))
-            {
-                return;
-            }
-
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
 
             if (!TryFindFirstAncestorOrSelf(root, context.Span, out IdentifierNameSyntax identifierName))
@@ -52,6 +45,9 @@ namespace Roslynator.CSharp.CodeFixes
                 {
                     case CompilerDiagnosticIdentifiers.UseOfUnassignedLocalVariable:
                         {
+                            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.InitializeLocalVariableWithDefaultValue))
+                                return;
+
                             SemanticModel semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
                             if (!(semanticModel.GetSymbol(identifierName, cancellationToken) is ILocalSymbol localSymbol))
@@ -98,6 +94,9 @@ namespace Roslynator.CSharp.CodeFixes
                         }
                     case CompilerDiagnosticIdentifiers.NameDoesNotExistInCurrentContext:
                         {
+                            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.AddVariableType))
+                                return;
+
                             if (!(identifierName.Parent is ArgumentSyntax argument))
                                 break;
 
@@ -111,14 +110,14 @@ namespace Roslynator.CSharp.CodeFixes
                                 if (typeSymbol.Kind == SymbolKind.TypeParameter)
                                     continue;
 
-                                string typeName = SymbolDisplay.ToMinimalDisplayString(typeSymbol, semanticModel, identifierName.SpanStart, SymbolDisplayFormats.Default);
+                                string typeName = SymbolDisplay.ToMinimalDisplayString(typeSymbol, semanticModel, identifierName.SpanStart, SymbolDisplayFormats.DisplayName);
 
                                 CodeAction codeAction = CodeAction.Create(
                                     $"Add variable type '{typeName}'",
                                     ct =>
                                     {
                                         DeclarationExpressionSyntax newNode = DeclarationExpression(
-                                            ParseName(typeName),
+                                            typeSymbol.ToTypeSyntax(),
                                             SingleVariableDesignation(identifierName.Identifier.WithoutTrivia()).WithLeadingTrivia(Space));
 
                                         newNode = newNode

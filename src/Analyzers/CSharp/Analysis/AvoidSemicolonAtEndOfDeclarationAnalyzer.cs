@@ -19,20 +19,16 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
-            context.EnableConcurrentExecution();
 
-            context.RegisterSyntaxNodeAction(AnalyzeNamespaceDeclaration, SyntaxKind.NamespaceDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeInterfaceDeclaration, SyntaxKind.InterfaceDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeStructDeclaration, SyntaxKind.StructDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeEnumDeclaration, SyntaxKind.EnumDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeNamespaceDeclaration(f), SyntaxKind.NamespaceDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeClassDeclaration(f), SyntaxKind.ClassDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeInterfaceDeclaration(f), SyntaxKind.InterfaceDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeStructDeclaration(f), SyntaxKind.StructDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeEnumDeclaration(f), SyntaxKind.EnumDeclaration);
         }
 
-        public static void AnalyzeNamespaceDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeNamespaceDeclaration(SyntaxNodeAnalysisContext context)
         {
             var declaration = (NamespaceDeclarationSyntax)context.Node;
 
@@ -45,7 +41,7 @@ namespace Roslynator.CSharp.Analysis
             }
         }
 
-        public static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
             var declaration = (ClassDeclarationSyntax)context.Node;
 
@@ -58,7 +54,7 @@ namespace Roslynator.CSharp.Analysis
             }
         }
 
-        public static void AnalyzeInterfaceDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeInterfaceDeclaration(SyntaxNodeAnalysisContext context)
         {
             var declaration = (InterfaceDeclarationSyntax)context.Node;
 
@@ -71,7 +67,7 @@ namespace Roslynator.CSharp.Analysis
             }
         }
 
-        public static void AnalyzeStructDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeStructDeclaration(SyntaxNodeAnalysisContext context)
         {
             var declaration = (StructDeclarationSyntax)context.Node;
 
@@ -84,7 +80,7 @@ namespace Roslynator.CSharp.Analysis
             }
         }
 
-        public static void AnalyzeEnumDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeEnumDeclaration(SyntaxNodeAnalysisContext context)
         {
             var declaration = (EnumDeclarationSyntax)context.Node;
 

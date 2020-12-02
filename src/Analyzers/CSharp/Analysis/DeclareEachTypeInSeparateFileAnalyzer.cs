@@ -19,15 +19,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeCompilationUnit, SyntaxKind.CompilationUnit);
+            context.RegisterSyntaxNodeAction(f => AnalyzeCompilationUnit(f), SyntaxKind.CompilationUnit);
         }
 
-        public static void AnalyzeCompilationUnit(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeCompilationUnit(SyntaxNodeAnalysisContext context)
         {
             var compilationUnit = (CompilationUnitSyntax)context.Node;
 
@@ -40,7 +37,7 @@ namespace Roslynator.CSharp.Analysis
                 return;
 
             MemberDeclarationSyntax firstTypeDeclaration = null;
-            bool isFirstReported = false;
+            var isFirstReported = false;
 
             Analyze(compilationUnitMembers);
 
@@ -81,7 +78,7 @@ namespace Roslynator.CSharp.Analysis
         {
             SyntaxToken token = CSharpUtility.GetIdentifier(member);
 
-            if (token == default(SyntaxToken))
+            if (token == default)
                 return;
 
             DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.DeclareEachTypeInSeparateFile, token);

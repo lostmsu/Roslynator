@@ -22,7 +22,7 @@ namespace Roslynator.CSharp.CodeFixes
     [Shared]
     public class UseAsyncAwaitCodeFixProvider : BaseCodeFixProvider
     {
-        private static readonly SyntaxAnnotation[] _asyncAwaitAnnotation = new SyntaxAnnotation[] { new SyntaxAnnotation() };
+        private static readonly SyntaxAnnotation[] _asyncAwaitAnnotation = new[] { new SyntaxAnnotation() };
 
         private static readonly SyntaxAnnotation[] _asyncAwaitAnnotationAndFormatterAnnotation = new SyntaxAnnotation[] { _asyncAwaitAnnotation[0], Formatter.Annotation };
 
@@ -35,12 +35,16 @@ namespace Roslynator.CSharp.CodeFixes
         {
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
 
-            if (!TryFindFirstAncestorOrSelf(root, context.Span, out SyntaxNode node, predicate: f => f.IsKind(
-                SyntaxKind.MethodDeclaration,
-                SyntaxKind.LocalFunctionStatement,
-                SyntaxKind.SimpleLambdaExpression,
-                SyntaxKind.ParenthesizedLambdaExpression,
-                SyntaxKind.AnonymousMethodExpression)))
+            if (!TryFindFirstAncestorOrSelf(
+                root,
+                context.Span,
+                out SyntaxNode node,
+                predicate: f => f.IsKind(
+                    SyntaxKind.MethodDeclaration,
+                    SyntaxKind.LocalFunctionStatement,
+                    SyntaxKind.SimpleLambdaExpression,
+                    SyntaxKind.ParenthesizedLambdaExpression,
+                    SyntaxKind.AnonymousMethodExpression)))
             {
                 return;
             }
@@ -62,12 +66,10 @@ namespace Roslynator.CSharp.CodeFixes
         {
             SemanticModel semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
-            switch (node.Kind())
+            switch (node)
             {
-                case SyntaxKind.MethodDeclaration:
+                case MethodDeclarationSyntax methodDeclaration:
                     {
-                        var methodDeclaration = (MethodDeclarationSyntax)node;
-
                         IMethodSymbol methodSymbol = semanticModel.GetDeclaredSymbol(methodDeclaration, cancellationToken);
 
                         UseAsyncAwaitRewriter rewriter = UseAsyncAwaitRewriter.Create(methodSymbol);
@@ -78,10 +80,8 @@ namespace Roslynator.CSharp.CodeFixes
 
                         return await document.ReplaceNodeAsync(methodDeclaration, newNode, cancellationToken).ConfigureAwait(false);
                     }
-                case SyntaxKind.LocalFunctionStatement:
+                case LocalFunctionStatementSyntax localFunction:
                     {
-                        var localFunction = (LocalFunctionStatementSyntax)node;
-
                         IMethodSymbol methodSymbol = semanticModel.GetDeclaredSymbol(localFunction, cancellationToken);
 
                         UseAsyncAwaitRewriter rewriter = UseAsyncAwaitRewriter.Create(methodSymbol);
@@ -94,10 +94,8 @@ namespace Roslynator.CSharp.CodeFixes
 
                         return await document.ReplaceNodeAsync(localFunction, newNode, cancellationToken).ConfigureAwait(false);
                     }
-                case SyntaxKind.SimpleLambdaExpression:
+                case SimpleLambdaExpressionSyntax lambda:
                     {
-                        var lambda = (SimpleLambdaExpressionSyntax)node;
-
                         var methodSymbol = (IMethodSymbol)semanticModel.GetSymbol(lambda, cancellationToken);
 
                         UseAsyncAwaitRewriter rewriter = UseAsyncAwaitRewriter.Create(methodSymbol);
@@ -110,10 +108,8 @@ namespace Roslynator.CSharp.CodeFixes
 
                         return await document.ReplaceNodeAsync(lambda, newNode, cancellationToken).ConfigureAwait(false);
                     }
-                case SyntaxKind.ParenthesizedLambdaExpression:
+                case ParenthesizedLambdaExpressionSyntax lambda:
                     {
-                        var lambda = (ParenthesizedLambdaExpressionSyntax)node;
-
                         var methodSymbol = (IMethodSymbol)semanticModel.GetSymbol(lambda, cancellationToken);
 
                         UseAsyncAwaitRewriter rewriter = UseAsyncAwaitRewriter.Create(methodSymbol);
@@ -126,10 +122,8 @@ namespace Roslynator.CSharp.CodeFixes
 
                         return await document.ReplaceNodeAsync(lambda, newNode, cancellationToken).ConfigureAwait(false);
                     }
-                case SyntaxKind.AnonymousMethodExpression:
+                case AnonymousMethodExpressionSyntax anonymousMethod:
                     {
-                        var anonymousMethod = (AnonymousMethodExpressionSyntax)node;
-
                         var methodSymbol = (IMethodSymbol)semanticModel.GetSymbol(anonymousMethod, cancellationToken);
 
                         UseAsyncAwaitRewriter rewriter = UseAsyncAwaitRewriter.Create(methodSymbol);
@@ -160,7 +154,7 @@ namespace Roslynator.CSharp.CodeFixes
             {
                 ITypeSymbol returnType = methodSymbol.ReturnType.OriginalDefinition;
 
-                bool keepReturnStatement = false;
+                var keepReturnStatement = false;
 
                 if (returnType.EqualsOrInheritsFrom(MetadataNames.System_Threading_Tasks_ValueTask_T)
                     || returnType.EqualsOrInheritsFrom(MetadataNames.System_Threading_Tasks_Task_T))
@@ -184,8 +178,8 @@ namespace Roslynator.CSharp.CodeFixes
                     else
                     {
                         return ExpressionStatement(AwaitExpression(expression.WithoutTrivia().Parenthesize()).WithTriviaFrom(expression))
-                                .WithLeadingTrivia(node.GetLeadingTrivia())
-                                .WithAdditionalAnnotations(_asyncAwaitAnnotationAndFormatterAnnotation);
+                            .WithLeadingTrivia(node.GetLeadingTrivia())
+                            .WithAdditionalAnnotations(_asyncAwaitAnnotationAndFormatterAnnotation);
                     }
                 }
 

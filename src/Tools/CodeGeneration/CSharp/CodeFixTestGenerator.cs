@@ -8,7 +8,7 @@ namespace Roslynator.CodeGeneration.CSharp
 {
     public static class CodeFixTestGenerator
     {
-        public static CompilationUnitSyntax Generate(CompilerDiagnosticDescriptor compilerDiagnostic, string className)
+        public static CompilationUnitSyntax Generate(CompilerDiagnosticMetadata compilerDiagnostic, string className)
         {
             string s = _sourceTemplate
                 .Replace("$ClassName$", className)
@@ -54,7 +54,7 @@ class C
 
         //[Theory, Trait(Traits.CodeFix, CompilerDiagnosticIdentifiers.$Identifier$)]
         //[InlineData("""", """")]
-        public async Task Test(string fromData, string toData)
+        public async Task Test(string source, string expected)
         {
             await VerifyFixAsync(@""
 using System;
@@ -68,7 +68,7 @@ class C
     {
     }
 }
-"", fromData, toData, equivalenceKey: EquivalenceKey.Create(DiagnosticId));
+"", source, expected, equivalenceKey: EquivalenceKey.Create(DiagnosticId));
         }
 
         //[Fact, Trait(Traits.CodeFix, CompilerDiagnosticIdentifiers.$Identifier$)]

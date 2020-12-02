@@ -19,15 +19,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeLockStatement, SyntaxKind.LockStatement);
+            context.RegisterSyntaxNodeAction(f => AnalyzeLockStatement(f), SyntaxKind.LockStatement);
         }
 
-        public static void AnalyzeLockStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeLockStatement(SyntaxNodeAnalysisContext context)
         {
             var lockStatement = (LockStatementSyntax)context.Node;
 
@@ -49,7 +46,8 @@ namespace Roslynator.CSharp.Analysis
                 return;
             }
 
-            DiagnosticHelpers.ReportDiagnostic(context,
+            DiagnosticHelpers.ReportDiagnostic(
+                context,
                 DiagnosticDescriptors.AvoidLockingOnPubliclyAccessibleInstance,
                 expression,
                 expression.ToString());

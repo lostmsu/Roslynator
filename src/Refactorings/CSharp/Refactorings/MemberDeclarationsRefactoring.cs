@@ -96,7 +96,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             in MemberDeclarationListInfo info,
             int index,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SyntaxList<MemberDeclarationSyntax> members = info.Members;
 
@@ -113,7 +113,7 @@ namespace Roslynator.CSharp.Refactorings
                 if (trivia.IsEndOfLineTrivia())
                 {
                     member = member.PrependToLeadingTrivia(trivia);
-                    nextMember = nextMember.WithLeadingTrivia(leading.Remove(trivia));
+                    nextMember = nextMember.WithLeadingTrivia(leading.Remove(trivia)).WithNavigationAnnotation();
                 }
             }
 
@@ -128,7 +128,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             in MemberDeclarationListInfo info,
             IEnumerable<MemberDeclarationSyntax> newMembers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceMembersAsync(info, newMembers, cancellationToken);
         }

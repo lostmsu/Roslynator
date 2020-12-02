@@ -8,7 +8,7 @@ namespace Roslynator.CodeGeneration.CSharp
 {
     public static class AnalyzerTestGenerator
     {
-        public static CompilationUnitSyntax Generate(AnalyzerDescriptor analyzer, string className)
+        public static CompilationUnitSyntax Generate(AnalyzerMetadata analyzer, string className)
         {
             string s = _sourceTemplate
                 .Replace("$ClassName$", className)
@@ -30,7 +30,7 @@ using Xunit;
 namespace Roslynator.CSharp.Analysis.Tests
 {
     //TODO: Add tests for $Id$
-    public class $ClassName$ : AbstractCSharpCodeFixVerifier
+    public class $ClassName$ : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.$Identifier$;
 
@@ -59,7 +59,7 @@ class C
 
         //[Theory, Trait(Traits.Analyzer, DiagnosticIdentifiers.$Identifier$)]
         //[InlineData("""", """")]
-        public async Task Test2(string fromData, string toData)
+        public async Task Test2(string source, string expected)
         {
             await VerifyDiagnosticAndFixAsync(@""
 using System;
@@ -73,7 +73,7 @@ class C
     {
     }
 }
-"", fromData, toData);
+"", source, expected);
         }
 
         //[Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.$Identifier$)]
@@ -96,7 +96,7 @@ class C
 
         //[Theory, Trait(Traits.Analyzer, DiagnosticIdentifiers.$Identifier$)]
         //[InlineData("""")]
-        public async Task TestNoDiagnostic2(string fromData)
+        public async Task TestNoDiagnostic2(string source)
         {
             await VerifyNoDiagnosticAsync(@""
 using System;
@@ -110,7 +110,7 @@ class C
     {
     }
 }
-"", fromData);
+"", source);
         }
     }
 }

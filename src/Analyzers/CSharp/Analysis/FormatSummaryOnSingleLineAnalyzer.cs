@@ -32,7 +32,8 @@ namespace Roslynator.CSharp.Analysis
                 [\s-[\r\n]]*
             )?
             $
-            ", RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
+            ",
+            RegexOptions.IgnorePatternWhitespace | RegexOptions.ExplicitCapture);
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
         {
@@ -41,15 +42,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeSingleLineDocumentationCommentTrivia, SyntaxKind.SingleLineDocumentationCommentTrivia);
+            context.RegisterSyntaxNodeAction(f => AnalyzeSingleLineDocumentationCommentTrivia(f), SyntaxKind.SingleLineDocumentationCommentTrivia);
         }
 
-        public static void AnalyzeSingleLineDocumentationCommentTrivia(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeSingleLineDocumentationCommentTrivia(SyntaxNodeAnalysisContext context)
         {
             var documentationComment = (DocumentationCommentTriviaSyntax)context.Node;
 
@@ -73,7 +71,8 @@ namespace Roslynator.CSharp.Analysis
 
                         if (match.Success)
                         {
-                            DiagnosticHelpers.ReportDiagnostic(context,
+                            DiagnosticHelpers.ReportDiagnostic(
+                                context,
                                 DiagnosticDescriptors.FormatDocumentationSummaryOnSingleLine,
                                 summaryElement);
                         }

@@ -19,15 +19,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeClassDeclaration(f), SyntaxKind.ClassDeclaration);
         }
 
-        public static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
             var classDeclaration = (ClassDeclarationSyntax)context.Node;
 
@@ -45,10 +42,8 @@ namespace Roslynator.CSharp.Analysis
 
             foreach (MemberDeclarationSyntax member in classDeclaration.Members)
             {
-                if (!member.IsKind(SyntaxKind.MethodDeclaration))
+                if (!(member is MethodDeclarationSyntax methodDeclaration))
                     continue;
-
-                var methodDeclaration = (MethodDeclarationSyntax)member;
 
                 if (!methodDeclaration.Modifiers.Contains(SyntaxKind.StaticKeyword))
                     continue;
@@ -70,9 +65,9 @@ namespace Roslynator.CSharp.Analysis
                 if (parameter.Modifiers.Contains(SyntaxKind.ParamsKeyword))
                     continue;
 
-                bool isThis = false;
-                bool isIn = false;
-                bool isRef = false;
+                var isThis = false;
+                var isIn = false;
+                var isRef = false;
 
                 foreach (SyntaxToken modifier in parameter.Modifiers)
                 {

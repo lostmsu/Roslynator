@@ -15,7 +15,7 @@ namespace Roslynator.CSharp.Syntax
     /// Provides information about a list of member declaration list.
     /// </summary>
     [DebuggerDisplay("{DebuggerDisplay,nq}")]
-    public readonly struct MemberDeclarationListInfo : IEquatable<MemberDeclarationListInfo>, IReadOnlyList<MemberDeclarationSyntax>
+    public readonly struct MemberDeclarationListInfo : IReadOnlyList<MemberDeclarationSyntax>
     {
         internal MemberDeclarationListInfo(SyntaxNode parent, SyntaxList<MemberDeclarationSyntax> members)
         {
@@ -49,6 +49,33 @@ namespace Roslynator.CSharp.Syntax
             get { return Members.Count; }
         }
 
+        //TODO: make public
+        internal SyntaxToken? OpenBraceToken
+        {
+            get
+            {
+                return Parent switch
+                {
+                    NamespaceDeclarationSyntax namespaceDeclaration => namespaceDeclaration.OpenBraceToken,
+                    TypeDeclarationSyntax typeDeclaration => typeDeclaration.OpenBraceToken,
+                    _ => null,
+                };
+            }
+        }
+
+        internal SyntaxToken? CloseBraceToken
+        {
+            get
+            {
+                return Parent switch
+                {
+                    NamespaceDeclarationSyntax namespaceDeclaration => namespaceDeclaration.CloseBraceToken,
+                    TypeDeclarationSyntax typeDeclaration => typeDeclaration.CloseBraceToken,
+                    _ => null,
+                };
+            }
+        }
+
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         private string DebuggerDisplay
         {
@@ -58,8 +85,8 @@ namespace Roslynator.CSharp.Syntax
         /// <summary>
         /// Gets the member at the specified index in the list.
         /// </summary>
-        /// <returns>The member at the specified index in the list.</returns>
         /// <param name="index">The zero-based index of the member to get. </param>
+        /// <returns>The member at the specified index in the list.</returns>
         public MemberDeclarationSyntax this[int index]
         {
             get { return Members[index]; }
@@ -78,7 +105,6 @@ namespace Roslynator.CSharp.Syntax
         /// <summary>
         /// Gets the enumerator for the list of members.
         /// </summary>
-        /// <returns></returns>
         public SyntaxList<MemberDeclarationSyntax>.Enumerator GetEnumerator()
         {
             return Members.GetEnumerator();
@@ -167,7 +193,6 @@ namespace Roslynator.CSharp.Syntax
         /// Creates a new <see cref="MemberDeclarationListInfo"/> with the members updated.
         /// </summary>
         /// <param name="members"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo WithMembers(IEnumerable<MemberDeclarationSyntax> members)
         {
             return WithMembers(List(members));
@@ -177,7 +202,6 @@ namespace Roslynator.CSharp.Syntax
         /// Creates a new <see cref="MemberDeclarationListInfo"/> with the members updated.
         /// </summary>
         /// <param name="members"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo WithMembers(SyntaxList<MemberDeclarationSyntax> members)
         {
             ThrowInvalidOperationIfNotInitialized();
@@ -196,21 +220,18 @@ namespace Roslynator.CSharp.Syntax
                         declaration = declaration.WithMembers(members);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.ClassDeclaration:
                     {
                         var declaration = (ClassDeclarationSyntax)Parent;
                         declaration = declaration.WithMembers(members);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.StructDeclaration:
                     {
                         var declaration = (StructDeclarationSyntax)Parent;
                         declaration = declaration.WithMembers(members);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.InterfaceDeclaration:
                     {
                         var declaration = (InterfaceDeclarationSyntax)Parent;
@@ -227,7 +248,6 @@ namespace Roslynator.CSharp.Syntax
         /// </summary>
         /// <param name="node"></param>
         /// <param name="options"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo RemoveNode(SyntaxNode node, SyntaxRemoveOptions options)
         {
             ThrowInvalidOperationIfNotInitialized();
@@ -246,21 +266,18 @@ namespace Roslynator.CSharp.Syntax
                         declaration = declaration.RemoveNode(node, options);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.ClassDeclaration:
                     {
                         var declaration = (ClassDeclarationSyntax)Parent;
                         declaration = declaration.RemoveNode(node, options);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.StructDeclaration:
                     {
                         var declaration = (StructDeclarationSyntax)Parent;
                         declaration = declaration.RemoveNode(node, options);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.InterfaceDeclaration:
                     {
                         var declaration = (InterfaceDeclarationSyntax)Parent;
@@ -277,7 +294,6 @@ namespace Roslynator.CSharp.Syntax
         /// </summary>
         /// <param name="oldNode"></param>
         /// <param name="newNode"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo ReplaceNode(SyntaxNode oldNode, SyntaxNode newNode)
         {
             ThrowInvalidOperationIfNotInitialized();
@@ -296,21 +312,18 @@ namespace Roslynator.CSharp.Syntax
                         declaration = declaration.ReplaceNode(oldNode, newNode);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.ClassDeclaration:
                     {
                         var declaration = (ClassDeclarationSyntax)Parent;
                         declaration = declaration.ReplaceNode(oldNode, newNode);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.StructDeclaration:
                     {
                         var declaration = (StructDeclarationSyntax)Parent;
                         declaration = declaration.ReplaceNode(oldNode, newNode);
                         return new MemberDeclarationListInfo(declaration, declaration.Members);
                     }
-
                 case SyntaxKind.InterfaceDeclaration:
                     {
                         var declaration = (InterfaceDeclarationSyntax)Parent;
@@ -326,7 +339,6 @@ namespace Roslynator.CSharp.Syntax
         /// Creates a new <see cref="MemberDeclarationListInfo"/> with the specified member added at the end.
         /// </summary>
         /// <param name="member"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo Add(MemberDeclarationSyntax member)
         {
             return WithMembers(Members.Add(member));
@@ -336,7 +348,6 @@ namespace Roslynator.CSharp.Syntax
         /// Creates a new <see cref="MemberDeclarationListInfo"/> with the specified members added at the end.
         /// </summary>
         /// <param name="members"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo AddRange(IEnumerable<MemberDeclarationSyntax> members)
         {
             return WithMembers(Members.AddRange(members));
@@ -345,7 +356,6 @@ namespace Roslynator.CSharp.Syntax
         /// <summary>
         /// True if the list has at least one member.
         /// </summary>
-        /// <returns></returns>
         public bool Any()
         {
             return Members.Any();
@@ -354,26 +364,23 @@ namespace Roslynator.CSharp.Syntax
         /// <summary>
         /// The first member in the list.
         /// </summary>
-        /// <returns></returns>
         public MemberDeclarationSyntax First()
         {
-            return Members.First();
+            return Members[0];
         }
 
         /// <summary>
         /// The first member in the list or null if the list is empty.
         /// </summary>
-        /// <returns></returns>
         public MemberDeclarationSyntax FirstOrDefault()
         {
             return Members.FirstOrDefault();
         }
 
         /// <summary>
-        /// Searches for a member that matches the predicate and returns returns zero-based index of the first occurrence in the list.
+        /// Searches for a member that matches the predicate and returns zero-based index of the first occurrence in the list.
         /// </summary>
         /// <param name="predicate"></param>
-        /// <returns></returns>
         public int IndexOf(Func<MemberDeclarationSyntax, bool> predicate)
         {
             return Members.IndexOf(predicate);
@@ -383,7 +390,6 @@ namespace Roslynator.CSharp.Syntax
         /// The index of the member in the list.
         /// </summary>
         /// <param name="member"></param>
-        /// <returns></returns>
         public int IndexOf(MemberDeclarationSyntax member)
         {
             return Members.IndexOf(member);
@@ -394,7 +400,6 @@ namespace Roslynator.CSharp.Syntax
         /// </summary>
         /// <param name="index"></param>
         /// <param name="member"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo Insert(int index, MemberDeclarationSyntax member)
         {
             return WithMembers(Members.Insert(index, member));
@@ -405,7 +410,6 @@ namespace Roslynator.CSharp.Syntax
         /// </summary>
         /// <param name="index"></param>
         /// <param name="members"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo InsertRange(int index, IEnumerable<MemberDeclarationSyntax> members)
         {
             return WithMembers(Members.InsertRange(index, members));
@@ -414,7 +418,6 @@ namespace Roslynator.CSharp.Syntax
         /// <summary>
         /// The last member in the list.
         /// </summary>
-        /// <returns></returns>
         public MemberDeclarationSyntax Last()
         {
             return Members.Last();
@@ -423,17 +426,15 @@ namespace Roslynator.CSharp.Syntax
         /// <summary>
         /// The last member in the list or null if the list is empty.
         /// </summary>
-        /// <returns></returns>
         public MemberDeclarationSyntax LastOrDefault()
         {
             return Members.LastOrDefault();
         }
 
         /// <summary>
-        /// Searches for a member that matches the predicate and returns returns zero-based index of the last occurrence in the list.
+        /// Searches for a member that matches the predicate and returns zero-based index of the last occurrence in the list.
         /// </summary>
         /// <param name="predicate"></param>
-        /// <returns></returns>
         public int LastIndexOf(Func<MemberDeclarationSyntax, bool> predicate)
         {
             return Members.LastIndexOf(predicate);
@@ -443,7 +444,6 @@ namespace Roslynator.CSharp.Syntax
         /// Searches for a member and returns zero-based index of the last occurrence in the list.
         /// </summary>
         /// <param name="member"></param>
-        /// <returns></returns>
         public int LastIndexOf(MemberDeclarationSyntax member)
         {
             return Members.LastIndexOf(member);
@@ -453,7 +453,6 @@ namespace Roslynator.CSharp.Syntax
         /// Creates a new <see cref="MemberDeclarationListInfo"/> with the specified member removed.
         /// </summary>
         /// <param name="member"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo Remove(MemberDeclarationSyntax member)
         {
             return WithMembers(Members.Remove(member));
@@ -463,7 +462,6 @@ namespace Roslynator.CSharp.Syntax
         /// Creates a new <see cref="MemberDeclarationListInfo"/> with the member at the specified index removed.
         /// </summary>
         /// <param name="index"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo RemoveAt(int index)
         {
             return WithMembers(Members.RemoveAt(index));
@@ -474,7 +472,6 @@ namespace Roslynator.CSharp.Syntax
         /// </summary>
         /// <param name="memberInList"></param>
         /// <param name="newMember"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo Replace(MemberDeclarationSyntax memberInList, MemberDeclarationSyntax newMember)
         {
             return WithMembers(Members.Replace(memberInList, newMember));
@@ -485,7 +482,6 @@ namespace Roslynator.CSharp.Syntax
         /// </summary>
         /// <param name="index"></param>
         /// <param name="newMember"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo ReplaceAt(int index, MemberDeclarationSyntax newMember)
         {
             return WithMembers(Members.ReplaceAt(index, newMember));
@@ -496,7 +492,6 @@ namespace Roslynator.CSharp.Syntax
         /// </summary>
         /// <param name="memberInList"></param>
         /// <param name="newMembers"></param>
-        /// <returns></returns>
         public MemberDeclarationListInfo ReplaceRange(MemberDeclarationSyntax memberInList, IEnumerable<MemberDeclarationSyntax> newMembers)
         {
             return WithMembers(Members.ReplaceRange(memberInList, newMembers));
@@ -506,54 +501,6 @@ namespace Roslynator.CSharp.Syntax
         {
             if (Parent == null)
                 throw new InvalidOperationException($"{nameof(MemberDeclarationListInfo)} is not initalized.");
-        }
-
-        /// <summary>
-        /// Returns the string representation of the underlying syntax, not including its leading and trailing trivia.
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
-            return Parent?.ToString() ?? "";
-        }
-
-        /// <summary>
-        /// Determines whether this instance and a specified object are equal.
-        /// </summary>
-        /// <param name="obj">The object to compare with the current instance. </param>
-        /// <returns>true if <paramref name="obj" /> and this instance are the same type and represent the same value; otherwise, false. </returns>
-        public override bool Equals(object obj)
-        {
-            return obj is MemberDeclarationListInfo other && Equals(other);
-        }
-
-        /// <summary>
-        /// Determines whether this instance is equal to another object of the same type.
-        /// </summary>
-        /// <param name="other">An object to compare with this object.</param>
-        /// <returns>true if the current object is equal to the <paramref name="other" /> parameter; otherwise, false.</returns>
-        public bool Equals(MemberDeclarationListInfo other)
-        {
-            return EqualityComparer<SyntaxNode>.Default.Equals(Parent, other.Parent);
-        }
-
-        /// <summary>
-        /// Returns the hash code for this instance.
-        /// </summary>
-        /// <returns>A 32-bit signed integer that is the hash code for this instance.</returns>
-        public override int GetHashCode()
-        {
-            return EqualityComparer<SyntaxNode>.Default.GetHashCode(Parent);
-        }
-
-        public static bool operator ==(in MemberDeclarationListInfo info1, in MemberDeclarationListInfo info2)
-        {
-            return info1.Equals(info2);
-        }
-
-        public static bool operator !=(in MemberDeclarationListInfo info1, in MemberDeclarationListInfo info2)
-        {
-            return !(info1 == info2);
         }
     }
 }

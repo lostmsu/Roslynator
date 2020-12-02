@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Refactorings.Tests
 {
-    public class RR0127InlineConstantValueTests : AbstractCSharpCodeRefactoringVerifier
+    public class RR0127InlineConstantValueTests : AbstractCSharpRefactoringVerifier
     {
         public override string RefactoringId { get; } = RefactoringIdentifiers.InlineConstantValue;
 
@@ -310,7 +310,7 @@ namespace A.B
         }
     }
 }
-", additionalSources: new string[] { @"
+", additionalSources: new[] { @"
 namespace A.B
 {
     class C2

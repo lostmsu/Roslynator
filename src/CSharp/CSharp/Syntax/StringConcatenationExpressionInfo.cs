@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -19,7 +18,7 @@ namespace Roslynator.CSharp.Syntax
     /// Provides information about string concatenation, i.e. a binary expression that binds to string '+' operator.
     /// </summary>
     [DebuggerDisplay("{DebuggerDisplay,nq}")]
-    public readonly struct StringConcatenationExpressionInfo : IEquatable<StringConcatenationExpressionInfo>
+    public readonly struct StringConcatenationExpressionInfo
     {
         private readonly ExpressionChain _chain;
 
@@ -64,7 +63,7 @@ namespace Roslynator.CSharp.Syntax
             SyntaxNode node,
             SemanticModel semanticModel,
             bool walkDownParentheses = true,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Create(
                 Walk(node, walkDownParentheses) as BinaryExpressionSyntax,
@@ -75,7 +74,7 @@ namespace Roslynator.CSharp.Syntax
         internal static StringConcatenationExpressionInfo Create(
             BinaryExpressionSyntax binaryExpression,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ExpressionChain chain = binaryExpression.AsChain();
 
@@ -88,7 +87,7 @@ namespace Roslynator.CSharp.Syntax
         internal static StringConcatenationExpressionInfo Create(
             in ExpressionChain chain,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (!chain.Reverse().IsStringConcatenation(semanticModel, cancellationToken))
                 return default;
@@ -97,29 +96,8 @@ namespace Roslynator.CSharp.Syntax
         }
 
         /// <summary>
-        /// Returns expressions of this binary expression, including expressions of nested binary expressions of the same kind as parent binary expression.
-        /// </summary>
-        /// <param name="leftToRight">If true expressions are enumerated as they are displayed in the source code.</param>
-        /// <returns></returns>
-        [Obsolete("This method is obsolete. Use method 'AsChain' instead.")]
-        public IEnumerable<ExpressionSyntax> Expressions(bool leftToRight = false)
-        {
-            ThrowInvalidOperationIfNotInitialized();
-
-            if (leftToRight)
-            {
-                return _chain;
-            }
-            else
-            {
-                return _chain.Reverse();
-            }
-        }
-
-        /// <summary>
         /// Returns <see cref="ExpressionChain"/> that enables to enumerate expressions of a string concatenation.
         /// </summary>
-        /// <returns></returns>
         public ExpressionChain AsChain()
         {
             return _chain;
@@ -217,7 +195,7 @@ namespace Roslynator.CSharp.Syntax
                     {
                         sb.Remove(sb.Length - 1, 1);
 
-                        if (sb.Length - length > 1
+                        if (sb.Length > length
                             && sb[sb.Length - 1] == '\r')
                         {
                             sb.Remove(sb.Length - 1, 1);
@@ -243,15 +221,6 @@ namespace Roslynator.CSharp.Syntax
             return (LiteralExpressionSyntax)ParseExpression(StringBuilderCache.GetStringAndFree(sb));
         }
 
-        /// <summary>
-        /// Returns the string representation of the underlying syntax, not including its leading and trailing trivia.
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
-            return _chain.ToString();
-        }
-
         private void ThrowInvalidOperationIfNotInitialized()
         {
             if (BinaryExpression == null)
@@ -262,46 +231,6 @@ namespace Roslynator.CSharp.Syntax
         {
             if (analysis.ContainsNonStringLiteral)
                 throw new InvalidOperationException("String concatenation contains an expression that is not a string literal.");
-        }
-
-        /// <summary>
-        /// Determines whether this instance and a specified object are equal.
-        /// </summary>
-        /// <param name="obj">The object to compare with the current instance. </param>
-        /// <returns>true if <paramref name="obj" /> and this instance are the same type and represent the same value; otherwise, false. </returns>
-        public override bool Equals(object obj)
-        {
-            return obj is StringConcatenationExpressionInfo other && Equals(other);
-        }
-
-        /// <summary>
-        /// Determines whether this instance is equal to another object of the same type.
-        /// </summary>
-        /// <param name="other">An object to compare with this object.</param>
-        /// <returns>true if the current object is equal to the <paramref name="other" /> parameter; otherwise, false.</returns>
-        public bool Equals(StringConcatenationExpressionInfo other)
-        {
-            return EqualityComparer<BinaryExpressionSyntax>.Default.Equals(BinaryExpression, other.BinaryExpression)
-                && EqualityComparer<TextSpan?>.Default.Equals(Span, other.Span);
-        }
-
-        /// <summary>
-        /// Returns the hash code for this instance.
-        /// </summary>
-        /// <returns>A 32-bit signed integer that is the hash code for this instance.</returns>
-        public override int GetHashCode()
-        {
-            return Hash.Combine(Span.GetHashCode(), Hash.Create(BinaryExpression));
-        }
-
-        public static bool operator ==(in StringConcatenationExpressionInfo info1, in StringConcatenationExpressionInfo info2)
-        {
-            return info1.Equals(info2);
-        }
-
-        public static bool operator !=(in StringConcatenationExpressionInfo info1, in StringConcatenationExpressionInfo info2)
-        {
-            return !(info1 == info2);
         }
     }
 }

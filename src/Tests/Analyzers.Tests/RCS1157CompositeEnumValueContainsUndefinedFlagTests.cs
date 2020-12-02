@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1157CompositeEnumValueContainsUndefinedFlagTests : AbstractCSharpCodeFixVerifier
+    public class RCS1157CompositeEnumValueContainsUndefinedFlagTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.CompositeEnumValueContainsUndefinedFlag;
 
@@ -84,6 +84,20 @@ using System;
 public enum E
 {
     A = 1 << 31
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.CompositeEnumValueContainsUndefinedFlag)]
+        public async Task TestNoDiagnostic_MaxValue()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+
+[Flags]
+public enum E
+{
+    A = int.MaxValue
 }
 ");
         }

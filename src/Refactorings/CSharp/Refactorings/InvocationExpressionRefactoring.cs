@@ -15,7 +15,7 @@ namespace Roslynator.CSharp.Refactorings
         {
             if (context.IsAnyRefactoringEnabled(
                 RefactoringIdentifiers.UseElementAccessInsteadOfEnumerableMethod,
-                RefactoringIdentifiers.ReplaceAnyWithAllOrAllWithAny,
+                RefactoringIdentifiers.InvertLinqMethodCall,
                 RefactoringIdentifiers.CallExtensionMethodAsInstanceMethod,
                 RefactoringIdentifiers.CallIndexOfInsteadOfContains))
             {
@@ -30,8 +30,11 @@ namespace Roslynator.CSharp.Refactorings
                         if (context.IsRefactoringEnabled(RefactoringIdentifiers.UseElementAccessInsteadOfEnumerableMethod))
                             await UseElementAccessRefactoring.ComputeRefactoringsAsync(context, invocationExpression).ConfigureAwait(false);
 
-                        if (context.IsRefactoringEnabled(RefactoringIdentifiers.ReplaceAnyWithAllOrAllWithAny))
-                            await ReplaceAnyWithAllOrAllWithAnyRefactoring.ComputeRefactoringAsync(context, invocationExpression).ConfigureAwait(false);
+                        if (context.IsRefactoringEnabled(RefactoringIdentifiers.InvertLinqMethodCall))
+                        {
+                            SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
+                            InvertLinqMethodCallRefactoring.ComputeRefactoring(context, invocationExpression, semanticModel);
+                        }
 
                         if (context.IsRefactoringEnabled(RefactoringIdentifiers.CallIndexOfInsteadOfContains))
                             await CallIndexOfInsteadOfContainsRefactoring.ComputeRefactoringAsync(context, invocationExpression).ConfigureAwait(false);
@@ -65,28 +68,29 @@ namespace Roslynator.CSharp.Refactorings
                 }
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ReplaceStringFormatWithInterpolatedString)
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ConvertStringFormatToInterpolatedString)
                 && context.SupportsCSharp6)
             {
-                await ReplaceStringFormatWithInterpolatedStringRefactoring.ComputeRefactoringsAsync(context, invocationExpression).ConfigureAwait(false);
+                await ConvertStringFormatToInterpolatedStringRefactoring.ComputeRefactoringsAsync(context, invocationExpression).ConfigureAwait(false);
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.UseBitwiseOperationInsteadOfCallingHasFlag))
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.ConvertHasFlagCallToBitwiseOperation))
             {
                 SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 
-                if (UseBitwiseOperationInsteadOfCallingHasFlagAnalysis.IsFixable(invocationExpression, semanticModel, context.CancellationToken))
+                if (ConvertHasFlagCallToBitwiseOperationAnalysis.IsFixable(invocationExpression, semanticModel, context.CancellationToken))
                 {
                     context.RegisterRefactoring(
-                        UseBitwiseOperationInsteadOfCallingHasFlagRefactoring.Title,
+                        ConvertHasFlagCallToBitwiseOperationRefactoring.Title,
                         cancellationToken =>
                         {
-                            return UseBitwiseOperationInsteadOfCallingHasFlagRefactoring.RefactorAsync(
+                            return ConvertHasFlagCallToBitwiseOperationRefactoring.RefactorAsync(
                                 context.Document,
                                 invocationExpression,
+                                semanticModel,
                                 cancellationToken);
                         },
-                        RefactoringIdentifiers.UseBitwiseOperationInsteadOfCallingHasFlag);
+                        RefactoringIdentifiers.ConvertHasFlagCallToBitwiseOperation);
                 }
             }
 

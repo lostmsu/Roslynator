@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1104SimplifyConditionalExpressionTests : AbstractCSharpCodeFixVerifier
+    public class RCS1104SimplifyConditionalExpressionTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.SimplifyConditionalExpression;
 
@@ -34,7 +34,7 @@ namespace Roslynator.CSharp.Analysis.Tests
                                  /*e*/ : /*f*/ false|] /*g*/", @"f //a
               /*b*/  /*c*/  //d
                                  /*e*/  /*f*/  /*g*/")]
-        public async Task Test_TrueFalse(string fromData, string toData)
+        public async Task Test_TrueFalse(string source, string expected)
         {
             await VerifyDiagnosticAndFixAsync(@"
 class C
@@ -44,7 +44,7 @@ class C
         if ([||]) { }
 }
 }
-", fromData, toData);
+", source, expected);
         }
 
         [Theory, Trait(Traits.Analyzer, DiagnosticIdentifiers.SimplifyConditionalExpression)]
@@ -54,7 +54,7 @@ class C
             ? g
             : false|] /**/", @"f
             && g /**/")]
-        public async Task Test_LogicalAnd(string fromData, string toData)
+        public async Task Test_LogicalAnd(string source, string expected)
         {
             await VerifyDiagnosticAndFixAsync(@"
 class C
@@ -64,7 +64,7 @@ class C
         if ([||]) { }
     }
 }
-", fromData, toData);
+", source, expected);
         }
 
         [Theory, Trait(Traits.Analyzer, DiagnosticIdentifiers.SimplifyConditionalExpression)]
@@ -73,7 +73,7 @@ class C
             ? true
             : g|] /**/", @"f
             || g /**/")]
-        public async Task Test_LogicalOr(string fromData, string toData)
+        public async Task Test_LogicalOr(string source, string expected)
         {
             await VerifyDiagnosticAndFixAsync(@"
 class C
@@ -83,7 +83,59 @@ class C
         if ([||]) { }
     }
 }
-", fromData, toData);
+", source, expected);
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.SimplifyConditionalExpression)]
+        public async Task Test_NegateCondition()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    void M()
+    {
+        bool x = false, y = false;
+
+        bool z = [|x ? false : y|];
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        bool x = false, y = false;
+
+        bool z = !x && y;
+    }
+}
+", options: Options.WithEnabled(AnalyzerOptions.SimplifyConditionalExpressionWhenItIncludesNegationOfCondition));
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.SimplifyConditionalExpression)]
+        public async Task Test_NegateCondition2()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    void M()
+    {
+        bool x = false, y = false;
+
+        bool z = [|x ? y : true|];
+    }
+}
+", @"
+class C
+{
+    void M()
+    {
+        bool x = false, y = false;
+
+        bool z = !x || y;
+    }
+}
+", options: Options.WithEnabled(AnalyzerOptions.SimplifyConditionalExpressionWhenItIncludesNegationOfCondition));
         }
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.SimplifyConditionalExpression)]
@@ -100,11 +152,11 @@ class C
 
         if ((f)
 #if DEBUG
-                ? true
-            : false;
-#else
                 ? false
                 : true) { }
+#else
+                ? true
+                : false;
 #endif
     }
 }
@@ -122,6 +174,24 @@ class C
         bool x = false;
 
         bool? y = (x) ? default(bool?) : false;
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.SimplifyConditionalExpression)]
+        public async Task TestNoDiagnostic_NegationOfCondition()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M()
+    {
+        bool x = false, y = false;
+
+        bool z1 = x ? false : y;
+
+        bool z2 = x ? y : true;
     }
 }
 ");

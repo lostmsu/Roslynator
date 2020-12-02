@@ -154,7 +154,7 @@
   </CodeFix>
   <CodeFix Id="RCF0029" Identifier="ChangeAccessibility" Title="Change accessibility">
     <FixableDiagnosticIds>
-      <Id>CS0261</Id>
+      <Id>CS0621</Id>
       <Id>CS0442</Id>
       <Id>CS0507</Id>
       <Id>CS0628</Id>
@@ -192,7 +192,7 @@
       <Id>CS0513</Id>
     </FixableDiagnosticIds>
   </CodeFix>
-  <CodeFix Id="RCF0036" Identifier="SynchronizeAccessibility" Title="SynchronizeAccessibility">
+  <CodeFix Id="RCF0036" Identifier="SynchronizeAccessibility" Title="Synchronize accessibility">
     <FixableDiagnosticIds>
       <Id>CS0262</Id>
     </FixableDiagnosticIds>
@@ -528,6 +528,7 @@
   <CodeFix Id="RCF0093" Identifier="RemoveDefaultValueFromParameter" Title="Remove default value from parameter">
     <FixableDiagnosticIds>
       <Id>CS1751</Id>
+      <Id>CS1741</Id>
       <Id>CS1743</Id>
     </FixableDiagnosticIds>
   </CodeFix>
@@ -576,7 +577,7 @@
       <Id>CS0549</Id>
     </FixableDiagnosticIds>
   </CodeFix>
-  <CodeFix Id="RCF0103" Identifier="RemoveSwitchLabel" Title="RemoveSwitchLabel">
+  <CodeFix Id="RCF0103" Identifier="RemoveSwitchLabel" Title="Remove switch label">
     <FixableDiagnosticIds>
       <Id>CS0152</Id>
     </FixableDiagnosticIds>
@@ -604,7 +605,7 @@
   </CodeFix>
   <CodeFix Id="RCF0108" Identifier="RemoveParentheses" Title="Remove parentheses">
     <FixableDiagnosticIds>
-      <Id>CS0210</Id>
+      <Id>CS0201</Id>
     </FixableDiagnosticIds>
   </CodeFix>
   <CodeFix Id="RCF0109" Identifier="RemoveParameter" Title="Remove parameter">
@@ -636,6 +637,27 @@
       <Id>CS3016</Id>
       <Id>CS3024</Id>
       <Id>CS3027</Id>
+    </FixableDiagnosticIds>
+  </CodeFix>
+  <CodeFix Id="RCF0113" Identifier="ReplaceCharacterLiteralWithStringLiteral" Title="Replace character literal with string literal">
+    <FixableDiagnosticIds>
+      <Id>CS1012</Id>
+    </FixableDiagnosticIds>
+  </CodeFix>
+  <CodeFix Id="RCF0114" Identifier="MakeFieldWritable" Title="Make field writable">
+    <FixableDiagnosticIds>
+      <Id>CS0191</Id>
+      <Id>CS0192</Id>
+    </FixableDiagnosticIds>
+  </CodeFix>
+  <CodeFix Id="RCF0115" Identifier="ReplaceInvocationWithMemberAccessOrViceVersa" Title="Replace invocation with member access or vice versa">
+    <FixableDiagnosticIds>
+      <Id>CS1061</Id>
+    </FixableDiagnosticIds>
+  </CodeFix>
+  <CodeFix Id="RCF0116" Identifier="AddParameterToExplicitlyImplementedInterfaceMember" Title="Add parameter to explicitly implemented interface member">
+    <FixableDiagnosticIds>
+      <Id>CS0539</Id>
     </FixableDiagnosticIds>
   </CodeFix>
 </CodeFixes>

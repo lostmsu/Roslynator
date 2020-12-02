@@ -7,7 +7,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Roslynator.CSharp;
-using Roslynator.CSharp.Analysis.RemoveAsyncAwait;
 
 namespace Roslynator.CSharp.Analysis
 {
@@ -26,26 +25,22 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
-            context.EnableConcurrentExecution();
 
             context.RegisterCompilationStartAction(startContext =>
             {
                 if (startContext.IsAnalyzerSuppressed(DiagnosticDescriptors.RemoveRedundantAsyncAwait))
                     return;
 
-                startContext.RegisterSyntaxNodeAction(AnalyzeMethodDeclaration, SyntaxKind.MethodDeclaration);
-                startContext.RegisterSyntaxNodeAction(AnalyzeLocalFunctionStatement, SyntaxKind.LocalFunctionStatement);
-                startContext.RegisterSyntaxNodeAction(AnalyzeAnonymousMethodExpression, SyntaxKind.AnonymousMethodExpression);
-                startContext.RegisterSyntaxNodeAction(AnalyzeLambdaExpression, SyntaxKind.SimpleLambdaExpression);
-                startContext.RegisterSyntaxNodeAction(AnalyzeLambdaExpression, SyntaxKind.ParenthesizedLambdaExpression);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeMethodDeclaration(f), SyntaxKind.MethodDeclaration);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeLocalFunctionStatement(f), SyntaxKind.LocalFunctionStatement);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeAnonymousMethodExpression(f), SyntaxKind.AnonymousMethodExpression);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeLambdaExpression(f), SyntaxKind.SimpleLambdaExpression);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeLambdaExpression(f), SyntaxKind.ParenthesizedLambdaExpression);
             });
         }
 
-        public static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
 
@@ -57,15 +52,14 @@ namespace Roslynator.CSharp.Analysis
             if (!asyncKeyword.IsKind(SyntaxKind.AsyncKeyword))
                 return;
 
-            RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(methodDeclaration, context.SemanticModel, context.CancellationToken);
-
-            if (!analysis.Success)
-                return;
-
-            ReportDiagnostic(context, asyncKeyword, analysis);
+            using (RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(methodDeclaration, context.SemanticModel, context.CancellationToken))
+            {
+                if (analysis.Success)
+                    ReportDiagnostic(context, asyncKeyword, analysis);
+            }
         }
 
-        public static void AnalyzeLocalFunctionStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeLocalFunctionStatement(SyntaxNodeAnalysisContext context)
         {
             var localFunction = (LocalFunctionStatementSyntax)context.Node;
 
@@ -77,15 +71,14 @@ namespace Roslynator.CSharp.Analysis
             if (!asyncKeyword.IsKind(SyntaxKind.AsyncKeyword))
                 return;
 
-            RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(localFunction, context.SemanticModel, context.CancellationToken);
-
-            if (!analysis.Success)
-                return;
-
-            ReportDiagnostic(context, asyncKeyword, analysis);
+            using (RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(localFunction, context.SemanticModel, context.CancellationToken))
+            {
+                if (analysis.Success)
+                    ReportDiagnostic(context, asyncKeyword, analysis);
+            }
         }
 
-        public static void AnalyzeAnonymousMethodExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeAnonymousMethodExpression(SyntaxNodeAnalysisContext context)
         {
             var anonymousMethod = (AnonymousMethodExpressionSyntax)context.Node;
 
@@ -97,15 +90,14 @@ namespace Roslynator.CSharp.Analysis
             if (!asyncKeyword.IsKind(SyntaxKind.AsyncKeyword))
                 return;
 
-            RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(anonymousMethod, context.SemanticModel, context.CancellationToken);
-
-            if (!analysis.Success)
-                return;
-
-            ReportDiagnostic(context, asyncKeyword, analysis);
+            using (RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(anonymousMethod, context.SemanticModel, context.CancellationToken))
+            {
+                if (analysis.Success)
+                    ReportDiagnostic(context, asyncKeyword, analysis);
+            }
         }
 
-        public static void AnalyzeLambdaExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeLambdaExpression(SyntaxNodeAnalysisContext context)
         {
             var lambda = (LambdaExpressionSyntax)context.Node;
 
@@ -117,15 +109,14 @@ namespace Roslynator.CSharp.Analysis
             if (!asyncKeyword.IsKind(SyntaxKind.AsyncKeyword))
                 return;
 
-            RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(lambda, context.SemanticModel, context.CancellationToken);
-
-            if (!analysis.Success)
-                return;
-
-            ReportDiagnostic(context, asyncKeyword, analysis);
+            using (RemoveAsyncAwaitAnalysis analysis = RemoveAsyncAwaitAnalysis.Create(lambda, context.SemanticModel, context.CancellationToken))
+            {
+                if (analysis.Success)
+                    ReportDiagnostic(context, asyncKeyword, analysis);
+            }
         }
 
-        private static void ReportDiagnostic(SyntaxNodeAnalysisContext context, SyntaxToken asyncKeyword, in RemoveAsyncAwaitAnalysis analysis)
+        private static void ReportDiagnostic(SyntaxNodeAnalysisContext context, SyntaxToken asyncKeyword, RemoveAsyncAwaitAnalysis analysis)
         {
             DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.RemoveRedundantAsyncAwait, asyncKeyword);
             DiagnosticHelpers.ReportToken(context, DiagnosticDescriptors.RemoveRedundantAsyncAwaitFadeOut, asyncKeyword);
@@ -138,8 +129,6 @@ namespace Roslynator.CSharp.Analysis
             {
                 foreach (AwaitExpressionSyntax awaitExpression in analysis.Walker.AwaitExpressions)
                     ReportAwaitAndConfigureAwait(awaitExpression);
-
-                RemoveAsyncAwaitWalker.Free(analysis.Walker);
             }
 
             void ReportAwaitAndConfigureAwait(AwaitExpressionSyntax awaitExpression)

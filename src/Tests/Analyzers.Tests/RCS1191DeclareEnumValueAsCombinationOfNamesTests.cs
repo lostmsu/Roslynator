@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1191DeclareEnumValueAsCombinationOfNamesTests : AbstractCSharpCodeFixVerifier
+    public class RCS1191DeclareEnumValueAsCombinationOfNamesTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.DeclareEnumValueAsCombinationOfNames;
 
@@ -160,7 +160,7 @@ enum Foo
     AB = A | B,
     C = 4,
     D = 8,
-    ABD = [|3 | D|],
+    ABD = ([|3 | D|]),
 }
 ", @"
 using System;
@@ -174,7 +174,7 @@ enum Foo
     AB = A | B,
     C = 4,
     D = 8,
-    ABD = AB | D,
+    ABD = (AB | D),
 }
 ");
         }

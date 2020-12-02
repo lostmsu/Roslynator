@@ -20,15 +20,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeConstructorDeclaration, SyntaxKind.ConstructorDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeConstructorDeclaration(f), SyntaxKind.ConstructorDeclaration);
         }
 
-        public static void AnalyzeConstructorDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeConstructorDeclaration(SyntaxNodeAnalysisContext context)
         {
             var constructor = (ConstructorDeclarationSyntax)context.Node;
 
@@ -40,7 +37,8 @@ namespace Roslynator.CSharp.Analysis
                     .DescendantTrivia(initializer.Span)
                     .All(f => f.IsWhitespaceOrEndOfLineTrivia()))
             {
-                DiagnosticHelpers.ReportDiagnostic(context,
+                DiagnosticHelpers.ReportDiagnostic(
+                    context,
                     DiagnosticDescriptors.RemoveRedundantBaseConstructorCall,
                     initializer);
             }

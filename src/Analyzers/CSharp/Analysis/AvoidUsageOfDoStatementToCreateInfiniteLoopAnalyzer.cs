@@ -19,21 +19,19 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeDoStatement, SyntaxKind.DoStatement);
+            context.RegisterSyntaxNodeAction(f => AnalyzeDoStatement(f), SyntaxKind.DoStatement);
         }
 
-        public static void AnalyzeDoStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeDoStatement(SyntaxNodeAnalysisContext context)
         {
             var doStatement = (DoStatementSyntax)context.Node;
 
             if (doStatement.Condition?.Kind() == SyntaxKind.TrueLiteralExpression)
             {
-                DiagnosticHelpers.ReportDiagnostic(context,
+                DiagnosticHelpers.ReportDiagnostic(
+                    context,
                     DiagnosticDescriptors.AvoidUsageOfDoStatementToCreateInfiniteLoop,
                     doStatement.DoKeyword);
             }

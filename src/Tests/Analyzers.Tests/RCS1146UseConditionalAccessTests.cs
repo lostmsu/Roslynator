@@ -5,11 +5,12 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Roslynator.CSharp.CodeFixes;
+using Roslynator.CSharp.Testing;
 using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1146UseConditionalAccessTests : AbstractCSharpCodeFixVerifier
+    public class RCS1146UseConditionalAccessTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.UseConditionalAccess;
 
@@ -446,6 +447,8 @@ class Foo
 
         if (x != null && x.P == null && f) { }
 
+        if (x != null && x.P is null && f) { }
+
         if (x != null && x.P == NullConst && f) { }
 
         if (x != null && x.P == s && f) { }
@@ -669,6 +672,30 @@ if (dic != null && dic.TryGetValue(0, out value)) { }
         }
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseConditionalAccess)]
+        public async Task TestNoDiagnostic_LogicalAnd_OutParameter2()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System.Collections.Generic;
+
+class C
+{
+    Dictionary<string, string> _dic;
+
+    bool TryGetValue(string key, out string value)
+    {
+        if (this._dic != null && this._dic.TryGetValue(key, out value))
+        {
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseConditionalAccess)]
         public async Task TestNoDiagnostic_LogicalOr_OutParameter()
         {
             await VerifyNoDiagnosticAsync(@"
@@ -814,6 +841,25 @@ unsafe class C
     }
 }
 ");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseConditionalAccess)]
+        public async Task TestNoDiagnostic_LanguageVersion()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M()
+    {
+        C x = null;
+
+        if (x != null)
+        {
+            x.M();
+        }
+    }
+}
+", options: CSharpCodeVerificationOptions.Default_CSharp5);
         }
     }
 }

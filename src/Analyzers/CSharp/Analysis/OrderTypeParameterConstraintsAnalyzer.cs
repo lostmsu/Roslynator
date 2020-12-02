@@ -20,15 +20,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeTypeParameterList, SyntaxKind.TypeParameterList);
+            context.RegisterSyntaxNodeAction(f => AnalyzeTypeParameterList(f), SyntaxKind.TypeParameterList);
         }
 
-        public static void AnalyzeTypeParameterList(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeTypeParameterList(SyntaxNodeAnalysisContext context)
         {
             var typeParameterList = (TypeParameterListSyntax)context.Node;
 
@@ -49,9 +46,10 @@ namespace Roslynator.CSharp.Analysis
             if (!IsFixable(genericInfo.TypeParameters, genericInfo.ConstraintClauses))
                 return;
 
-            DiagnosticHelpers.ReportDiagnostic(context,
+            DiagnosticHelpers.ReportDiagnostic(
+                context,
                 DiagnosticDescriptors.OrderTypeParameterConstraints,
-                genericInfo.ConstraintClauses.First());
+                genericInfo.ConstraintClauses[0]);
         }
 
         private static bool IsFixable(

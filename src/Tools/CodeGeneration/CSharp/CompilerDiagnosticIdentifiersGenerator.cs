@@ -12,7 +12,7 @@ namespace Roslynator.CodeGeneration.CSharp
 {
     public static class CompilerDiagnosticIdentifiersGenerator
     {
-        public static CompilationUnitSyntax Generate(IEnumerable<CompilerDiagnosticDescriptor> descriptors, IComparer<string> comparer)
+        public static CompilationUnitSyntax Generate(IEnumerable<CompilerDiagnosticMetadata> compilerDiagnostics, IComparer<string> comparer)
         {
             return CompilationUnit(
                 UsingDirectives(),
@@ -21,15 +21,15 @@ namespace Roslynator.CodeGeneration.CSharp
                     ClassDeclaration(
                         Modifiers.Internal_Static(),
                         "CompilerDiagnosticIdentifiers",
-                        descriptors
+                        compilerDiagnostics
                             .OrderBy(f => f.Id, comparer)
                             .Select(f =>
                             {
                                 return FieldDeclaration(
-                                   Modifiers.Public_Const(),
-                                   PredefinedStringType(),
-                                   f.Identifier,
-                                   StringLiteralExpression(f.Id));
+                                    Modifiers.Public_Const(),
+                                    PredefinedStringType(),
+                                    f.Identifier,
+                                    StringLiteralExpression(f.Id));
                             })
                             .ToSyntaxList<MemberDeclarationSyntax>())));
         }

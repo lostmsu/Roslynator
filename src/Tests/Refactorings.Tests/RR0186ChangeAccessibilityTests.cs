@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Refactorings.Tests
 {
-    public class RR0186ChangeAccessibilityTests : AbstractCSharpCodeRefactoringVerifier
+    public class RR0186ChangeAccessibilityTests : AbstractCSharpRefactoringVerifier
     {
         public override string RefactoringId { get; } = RefactoringIdentifiers.ChangeAccessibility;
 
@@ -66,6 +66,42 @@ class C
     public string M() => null;
 }
 ", equivalenceKey: EquivalenceKey.Join(RefactoringId, nameof(Accessibility.Public)));
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.ChangeAccessibility)]
+        public async Task Test_MultipleDeclarations_AllImplicit()
+        {
+            await VerifyRefactoringAsync(@"
+class C
+{
+[|    object M1() => null;
+    object M2() => null;|]
+}
+", @"
+class C
+{
+    private object M1() => null;
+    private object M2() => null;
+}
+", equivalenceKey: EquivalenceKey.Join(RefactoringId, nameof(Accessibility.Private)));
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.ChangeAccessibility)]
+        public async Task Test_MultipleDeclarations_AnyImplicit()
+        {
+            await VerifyRefactoringAsync(@"
+class C
+{
+[|    private object M1() => null;
+    object M2() => null;|]
+}
+", @"
+class C
+{
+    private object M1() => null;
+    private object M2() => null;
+}
+", equivalenceKey: EquivalenceKey.Join(RefactoringId, nameof(Accessibility.Private)));
         }
 
         [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.ChangeAccessibility)]

@@ -31,8 +31,8 @@ namespace Roslynator.CSharp.Refactorings
         private static void ComputeRefactoring(RefactoringContext context, BlockSyntax block)
         {
             if (context.IsAnyRefactoringEnabled(
-                    RefactoringIdentifiers.RemoveBraces,
-                    RefactoringIdentifiers.RemoveBracesFromIfElse)
+                RefactoringIdentifiers.RemoveBraces,
+                RefactoringIdentifiers.RemoveBracesFromIfElse)
                 && CanRefactor(context, block))
             {
                 if (context.IsRefactoringEnabled(RefactoringIdentifiers.RemoveBraces))
@@ -67,7 +67,7 @@ namespace Roslynator.CSharp.Refactorings
 
         private static bool CanRefactorIfElse(BlockSyntax selectedBlock, IfStatementSyntax topmostIf)
         {
-            bool success = false;
+            var success = false;
 
             foreach (BlockSyntax block in GetBlockStatements(topmostIf))
             {
@@ -198,7 +198,7 @@ namespace Roslynator.CSharp.Refactorings
         public static Task<Document> RefactorAsync(
             Document document,
             BlockSyntax block,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             StatementSyntax statement = block.Statements[0];
 

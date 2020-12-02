@@ -21,15 +21,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeSwitchStatement, SyntaxKind.SwitchStatement);
+            context.RegisterSyntaxNodeAction(f => AnalyzeSwitchStatement(f), SyntaxKind.SwitchStatement);
         }
 
-        internal static void AnalyzeSwitchStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeSwitchStatement(SyntaxNodeAnalysisContext context)
         {
             var switchStatement = (SwitchStatementSyntax)context.Node;
 

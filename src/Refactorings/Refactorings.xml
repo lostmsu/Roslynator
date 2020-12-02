@@ -90,7 +90,7 @@
     </Syntaxes>
     <Span>selected class name</Span>
   </Refactoring>
-  <Refactoring Id="RR0015" Identifier="CallConfigureAwait" Title="Call 'ConfigureAwait(false)'">
+  <Refactoring Id="RR0015" Identifier="CallConfigureAwait" Title="Call 'ConfigureAwait(false)'" IsObsolete="true">
     <Syntaxes>
       <Syntax>awaitable method invocation</Syntax>
     </Syntaxes>
@@ -275,7 +275,7 @@
       <Syntax>event field declaration</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0037" Identifier="ExpandExpressionBody" Title="Expand expression body">
+  <Refactoring Id="RR0037" Identifier="ConvertExpressionBodyToBlockBody" Title="Convert expression-body to block body">
     <Syntaxes>
       <Syntax>expression body</Syntax>
     </Syntaxes>
@@ -285,9 +285,9 @@
       <Syntax>initializer</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0039" Identifier="ExpandLambdaExpressionBody" Title="Expand lambda expression body">
+  <Refactoring Id="RR0039" Identifier="ConvertLambdaExpressionBodyToBlockBody" Title="Convert lambda expression body to block body">
     <Syntaxes>
-      <Syntax>lambda expression</Syntax>
+      <Syntax>lambda expression's expression body</Syntax>
     </Syntaxes>
     <Span>body</Span>
   </Refactoring>
@@ -364,7 +364,7 @@ if (y)
     </Syntaxes>
     <Span>identifier</Span>
   </Refactoring>
-  <Refactoring Id="RR0047" Identifier="FormatAccessorBraces" Title="Format accessor braces">
+  <Refactoring Id="RR0047" Identifier="FormatAccessorBraces" Title="Format accessor braces" IsObsolete="true">
     <Syntaxes>
       <Syntax>get accessor</Syntax>
       <Syntax>set accessor</Syntax>
@@ -377,59 +377,164 @@ if (y)
       <Image>FormatAccessorBracesOnSingleLine</Image>
     </Images>
   </Refactoring>
-  <Refactoring Id="RR0048" Identifier="FormatArgumentList" Title="Format argument list">
+  <Refactoring Id="RR0048" Identifier="WrapArguments" Title="Wrap arguments">
     <Syntaxes>
       <Syntax>argument list</Syntax>
     </Syntaxes>
-    <Images>
-      <Image>FormatEachArgumentOnSeparateLine</Image>
-      <Image>FormatAllArgumentsOnSingleLine</Image>
-    </Images>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[M(x, y, z);]]></Before>
+        <After>
+          <![CDATA[M(
+    x,
+    y,
+    z);]]></After>
+      </Sample>
+      <Sample>
+        <Before>
+          <![CDATA[void M(
+    x,
+    y,
+    z);]]>
+        </Before>
+        <After>
+          <![CDATA[void M(x, y, z);]]>
+        </After>
+      </Sample>
+    </Samples>
   </Refactoring>
-  <Refactoring Id="RR0049" Identifier="FormatBinaryExpression" Title="Format binary expression">
+  <Refactoring Id="RR0049" Identifier="WrapBinaryExpression" Title="Wrap binary expression">
     <Syntaxes>
       <Syntax>logical and/or expression</Syntax>
       <Syntax>bitwise and/or expression</Syntax>
     </Syntaxes>
-    <Images>
-      <Image>FormatBinaryExpression</Image>
-    </Images>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[if (x && y && z)
+{
+}]]></Before>
+        <After><![CDATA[if (x
+    && y
+    && z)
+{
+}]]></After>
+      </Sample>
+      <Sample>
+        <Before>
+          <![CDATA[if (x
+    && y
+    && z)
+{
+}]]>
+        </Before>
+        <After>
+          <![CDATA[if (x && y && z)
+{
+}]]>
+        </After>
+      </Sample>
+    </Samples>
   </Refactoring>
-  <Refactoring Id="RR0050" Identifier="FormatConditionalExpression" Title="Format conditional expression">
+  <Refactoring Id="RR0050" Identifier="WrapConditionalExpression" Title="Wrap conditional expression">
     <Syntaxes>
       <Syntax>conditional expression</Syntax>
     </Syntaxes>
-    <Images>
-      <Image>FormatConditionalExpressionOnMultipleLines</Image>
-      <Image>FormatConditionalExpressionOnSingleLine</Image>
-    </Images>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[x ? y : z]]></Before>
+        <After><![CDATA[x
+    ? y
+    : z]]></After>
+      </Sample>
+    </Samples>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[x
+    ? y
+    : z]]></Before>
+        <After><![CDATA[x ? y : z]]></After>
+      </Sample>
+    </Samples>
   </Refactoring>
-  <Refactoring Id="RR0051" Identifier="FormatExpressionChain" Title="Format expression chain">
+  <Refactoring Id="RR0051" Identifier="WrapCallChain" Title="Wrap call chain">
     <Syntaxes>
-      <Syntax>expression chain</Syntax>
+      <Syntax>call chain</Syntax>
     </Syntaxes>
-    <Images>
-      <Image>FormatExpressionChainOnMultipleLines</Image>
-      <Image>FormatExpressionChainOnSingleLine</Image>
-    </Images>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[x.M().N().O()]]></Before>
+        <After><![CDATA[x
+    .M()
+    .N()
+    .O()]]></After>
+      </Sample>
+      <Sample>
+        <Before><![CDATA[x
+    .M()
+    .N()
+    .O()]]></Before>
+        <After><![CDATA[x.M().N().O()]]></After>
+      </Sample>
+    </Samples>
   </Refactoring>
-  <Refactoring Id="RR0052" Identifier="FormatInitializer" Title="Format initializer">
+  <Refactoring Id="RR0052" Identifier="WrapInitializerExpressions" Title="Wrap initializer expressions">
     <Syntaxes>
       <Syntax>initializer</Syntax>
     </Syntaxes>
-    <Images>
-      <Image>FormatInitializerOnMultipleLines</Image>
-      <Image>FormatInitializerOnSingleLine</Image>
-    </Images>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[var x = new string[] { "a", "b", "c" }]]></Before>
+        <After><![CDATA[var x = new string[]
+{
+    "a",
+    "b",
+    "c"
+}]]></After>
+      </Sample>
+      <Sample>
+        <Before><![CDATA[var x = new string[]
+{
+    "a",
+    "b",
+    "c"
+}]]></Before>
+        <After><![CDATA[var x = new string[] { "a", "b", "c" }]]></After>
+      </Sample>
+    </Samples>
   </Refactoring>
-  <Refactoring Id="RR0053" Identifier="FormatParameterList" Title="Format parameter list">
+  <Refactoring Id="RR0053" Identifier="WrapParameters" Title="Wrap parameters">
     <Syntaxes>
       <Syntax>parameter list</Syntax>
     </Syntaxes>
-    <Images>
-      <Image>FormatEachParameterOnSeparateLine</Image>
-      <Image>FormatAllParametersOnSingleLine</Image>
-    </Images>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[void M(object x, object y, object z)
+{
+}]]></Before>
+        <After>
+          <![CDATA[void M(
+    object x,
+    object y,
+    object z)
+{
+}]]></After>
+      </Sample>
+      <Sample>
+        <Before>
+          <![CDATA[void M(
+    object x,
+    object y,
+    object z)
+{
+}]]>
+        </Before>
+        <After>
+          <![CDATA[void M(object x, object y, object z)
+{
+}]]>
+        </After>
+      </Sample>
+    </Samples>
   </Refactoring>
   <Refactoring Id="RR0054" Identifier="GenerateBaseConstructors" Title="Generate base constructors">
     <Syntaxes>
@@ -576,30 +681,24 @@ if (y)
       <Syntax>selected attribute lists</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0075" Identifier="MergeIfStatements" Title="Merge if statements">
+  <Refactoring Id="RR0075" Identifier="MergeIfStatements" Title="Merge 'if' statements">
     <Syntaxes>
-      <Syntax>selected if statements</Syntax>
+      <Syntax>selected 'if' statements</Syntax>
     </Syntaxes>
     <Samples>
       <Sample>
-        <Before><![CDATA[bool condition1 = false;
-bool condition2 = false;
-
-if (condition1)
+        <Before><![CDATA[if (x)
 {
     return false;
 }
 
-if (condition2)
+if (y)
 {
     return false;
 }
 
 return true;]]></Before>
-        <After><![CDATA[bool condition1 = false;
-bool condition2 = false;
-
-if (condition1 || condition2)
+        <After><![CDATA[if (x || y)
 {
     return false;
 }
@@ -656,9 +755,9 @@ return true;]]></After>
       <Syntax>&gt;=</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0083" Identifier="NotifyPropertyChanged" Title="Notify property changed">
+  <Refactoring Id="RR0083" Identifier="NotifyWhenPropertyChange" Title="Notify when property change">
     <Syntaxes>
-      <Syntax>property in class/struct that implements INotifyPropertyChanged</Syntax>
+      <Syntax>property in class/struct that implements System.ComponentModel.INotifyPropertyChanged</Syntax>
     </Syntaxes>
     <Span>setter</Span>
   </Refactoring>
@@ -878,11 +977,29 @@ return true;]]></After>
       <Syntax>property identifier</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0116" Identifier="ReplaceAnyWithAllOrAllWithAny" Title="Replace Any with All (or All with Any)">
+  <Refactoring Id="RR0116" Identifier="InvertLinqMethodCall" Title="Invert LINQ method call">
     <Syntaxes>
-      <Syntax>Any(Func&lt;T, bool&gt; or All(Func&lt;T, bool&gt; from System.Linq.Enumerable namespace</Syntax>
+      <Syntax>System.Linq.Enumerable.Any(Func&lt;T, bool&gt;) or System.Linq.Enumerable.All(Func&lt;T, bool&gt;)</Syntax>
     </Syntaxes>
     <Span>method name</Span>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[if (items.Any(predicate)
+{
+}]]></Before>
+        <After><![CDATA[if (items.All(!predicate)
+{
+}]]></After>
+      </Sample>
+      <Sample>
+        <Before><![CDATA[if (items.All(predicate)
+{
+}]]></Before>
+        <After><![CDATA[if (items.Any(!predicate)
+{
+}]]></After>
+      </Sample>
+    </Samples>
   </Refactoring>
   <Refactoring Id="RR0117" Identifier="ReplaceAsWithCast" Title="Replace as expression with cast expression">
     <Syntaxes>
@@ -900,12 +1017,9 @@ return true;]]></After>
     </Syntaxes>
     <Span>selected true/false expression</Span>
   </Refactoring>
-  <Refactoring Id="RR0120" Identifier="ReplaceConditionalExpressionWithIfElse" Title="Replace ?: with if-else">
+  <Refactoring Id="RR0120" Identifier="ConvertConditionalOperatorToIfElse" Title="Convert ?: to if-else">
     <Syntaxes>
-      <Syntax>local declaration statement with conditional expression</Syntax>
-      <Syntax>assignment with conditional expression</Syntax>
-      <Syntax>return statement conditional expression</Syntax>
-      <Syntax>yield statement conditional expression</Syntax>
+      <Syntax>?: operator that is part of local declaration, assignment or (yield) return statement</Syntax>
     </Syntaxes>
     <Samples>
       <Sample>
@@ -943,7 +1057,7 @@ else
       <Syntax>constant declaration</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0123" Identifier="ReplaceDoWithWhile" Title="Replace do statement with while statement">
+  <Refactoring Id="RR0123" Identifier="ConvertDoToWhile" Title="Convert 'do' to 'while'">
     <Syntaxes>
       <Syntax>do statement</Syntax>
     </Syntaxes>
@@ -1006,28 +1120,28 @@ void Foo()
       <Syntax>read-only field</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0129" Identifier="ReplaceForEachWithFor" Title="Replace foreach statement with for statement">
+  <Refactoring Id="RR0129" Identifier="ConvertForEachToFor" Title="Convert 'foreach' to 'for'">
     <Syntaxes>
       <Syntax>foreach statement</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0130" Identifier="ReplaceForWithForEach" Title="Replace for statement with foreach statement">
+  <Refactoring Id="RR0130" Identifier="ConvertForToForEach" Title="Convert 'for' to 'foreach'">
     <Syntaxes>
       <Syntax>for statement</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0131" Identifier="ReplaceForWithWhile" Title="Replace for statement with while statement">
+  <Refactoring Id="RR0131" Identifier="ConvertForToWhile" Title="Convert 'for' to 'while'">
     <Syntaxes>
       <Syntax>for statement</Syntax>
     </Syntaxes>
     <Span>for keyword or selected for statement</Span>
   </Refactoring>
-  <Refactoring Id="RR0132" Identifier="ReplaceHexadecimalLiteralWithDecimalLiteral" Title="Replace hexadecimal literal with decimal literal">
+  <Refactoring Id="RR0132" Identifier="ConvertHexadecimalLiteralToDecimalLiteral" Title="Convert hexadecimal literal to decimal literal">
     <Syntaxes>
       <Syntax>hexadecimal literal</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0133" Identifier="ReplaceIfWithSwitch" Title="Replace if with switch">
+  <Refactoring Id="RR0133" Identifier="ConvertIfToSwitch" Title="Convert 'if' to 'switch'">
     <Syntaxes>
       <Syntax>if statement</Syntax>
     </Syntaxes>
@@ -1093,12 +1207,12 @@ i--;]]></After>
     </Syntaxes>
     <Span>interpolation</Span>
   </Refactoring>
-  <Refactoring Id="RR0136" Identifier="ReplaceInterpolatedStringWithStringLiteral" Title="Replace interpolated string with string literal">
+  <Refactoring Id="RR0136" Identifier="ConvertInterpolatedStringToStringLiteral" Title="Convert interpolated string to string literal">
     <Syntaxes>
       <Syntax>Interpolated string without any interpolation</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0137" Identifier="ReplaceMethodGroupWithLambda" Title="Replace method group with lambda">
+  <Refactoring Id="RR0137" Identifier="ConvertMethodGroupToLambda" Title="Convert method group to lambda">
     <Syntaxes>
       <Syntax>method group</Syntax>
     </Syntaxes>
@@ -1115,7 +1229,7 @@ i--;]]></After>
     </Syntaxes>
     <Span>method header</Span>
   </Refactoring>
-  <Refactoring Id="RR0139" Identifier="ReplaceNullLiteralExpressionWithDefaultExpression" Title="Replace null literal expression with default expression">
+  <Refactoring Id="RR0139" Identifier="ConvertNullLiteralToDefaultExpression" Title="Convert null literal to default expression">
     <Syntaxes>
       <Syntax>argument</Syntax>
     </Syntaxes>
@@ -1131,12 +1245,12 @@ i--;]]></After>
     </Syntaxes>
     <Span>property header</Span>
   </Refactoring>
-  <Refactoring Id="RR0142" Identifier="ReplaceRegularStringLiteralWithVerbatimStringLiteral" Title="Replace regular string literal with verbatim string literal">
+  <Refactoring Id="RR0142" Identifier="ConvertRegularStringLiteralToVerbatimStringLiteral" Title="Convert regular string literal to verbatim string literal">
     <Syntaxes>
       <Syntax>regular string literal</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0143" Identifier="ReplaceStatementWithIfElse" Title="Replace (yield) return statement with if-else">
+  <Refactoring Id="RR0143" Identifier="ConvertReturnToIf" Title="Convert '(yield) return' to 'if'">
     <Syntaxes>
       <Syntax>return statement</Syntax>
       <Syntax>yield return statement</Syntax>
@@ -1162,28 +1276,28 @@ i--;]]></After>
       </Sample>
     </Samples>
   </Refactoring>
-  <Refactoring Id="RR0145" Identifier="ReplaceStringFormatWithInterpolatedString" Title="Replace string.Format with interpolated string">
+  <Refactoring Id="RR0145" Identifier="ConvertStringFormatToInterpolatedString" Title="Convert 'string.Format' to interpolated string">
     <Syntaxes>
       <Syntax>string.Format method</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0147" Identifier="ReplaceSwitchWithIf" Title="Replace switch with if">
+  <Refactoring Id="RR0147" Identifier="ConvertSwitchToIf" Title="Convert 'switch' to 'if'">
     <Syntaxes>
       <Syntax>switch statement</Syntax>
     </Syntaxes>
     <Span>switch keyword</Span>
   </Refactoring>
-  <Refactoring Id="RR0148" Identifier="ReplaceVerbatimStringLiteralWithRegularStringLiteral" Title="Replace verbatim string literal with regular string literal">
+  <Refactoring Id="RR0148" Identifier="ConvertVerbatimStringLiteralToRegularStringLiteral" Title="Convert verbatim string literal to regular string literal">
     <Syntaxes>
       <Syntax>verbatim string literal</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0149" Identifier="ReplaceVerbatimStringLiteralWithRegularStringLiterals" Title="Replace verbatim string literal with regular string literals">
+  <Refactoring Id="RR0149" Identifier="ConvertVerbatimStringLiteralToRegularStringLiterals" Title="Convert verbatim string literal to regular string literals">
     <Syntaxes>
       <Syntax>multiline verbatim string literal</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0150" Identifier="ReplaceWhileWithDo" Title="Replace while statement with do statement">
+  <Refactoring Id="RR0150" Identifier="ConvertWhileToDo" Title="Convert 'while' statement to 'do' statement">
     <Syntaxes>
       <Syntax>while statement</Syntax>
     </Syntaxes>
@@ -1193,19 +1307,22 @@ i--;]]></After>
         <Before><![CDATA[while (condition)
 {
 }]]></Before>
-        <After><![CDATA[do
+        <After><![CDATA[if (condition)
 {
-} while (condition);]]></After>
+  do
+  {
+  } while (condition);
+}]]></After>
       </Sample>
     </Samples>
   </Refactoring>
-  <Refactoring Id="RR0151" Identifier="ReplaceWhileWithFor" Title="Replace while statement with for statement">
+  <Refactoring Id="RR0151" Identifier="ConvertWhileToFor" Title="Convert 'while' statement to 'for' statement">
     <Syntaxes>
       <Syntax>while statement</Syntax>
     </Syntaxes>
     <Span>while keyword or selected statement(s)</Span>
   </Refactoring>
-  <Refactoring Id="RR0152" Identifier="ReverseForLoop" Title="Reverse for loop">
+  <Refactoring Id="RR0152" Identifier="ReverseForStatement" Title="Reverse 'for' statement">
     <Syntaxes>
       <Syntax>for statement</Syntax>
     </Syntaxes>
@@ -1216,9 +1333,9 @@ i--;]]></After>
     </Syntaxes>
     <Span>top if keyword or selected if statement</Span>
   </Refactoring>
-  <Refactoring Id="RR0154" Identifier="SimplifyLambdaExpression" Title="Simplify lambda expression">
+  <Refactoring Id="RR0154" Identifier="ConvertLambdaExpressionBodyToExpressionBody" Title="Convert lambda expression body to expression-body">
     <Syntaxes>
-      <Syntax>lambda expression with block with single single-line statement</Syntax>
+      <Syntax>lambda expression with block body with single single-line statement</Syntax>
     </Syntaxes>
     <Span>body</Span>
   </Refactoring>
@@ -1295,12 +1412,12 @@ i--;]]></After>
     </Syntaxes>
     <Span>if keyword</Span>
   </Refactoring>
-  <Refactoring Id="RR0163" Identifier="UncommentSingleLineComment" Title="UncommentSingleLineComment">
+  <Refactoring Id="RR0163" Identifier="UncommentSingleLineComment" Title="Uncomment single-line comment">
     <Syntaxes>
       <Syntax>single-line comment(s)</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0164" Identifier="UseBitwiseOperationInsteadOfCallingHasFlag" Title="Use bitwise operation instead of calling 'HasFlag'">
+  <Refactoring Id="RR0164" Identifier="ConvertHasFlagCallToBitwiseOperation" Title="Convert 'HasFlag' call to bitwise operation">
     <Syntaxes>
       <Syntax>Enum.HasFlag method invocation</Syntax>
     </Syntaxes>
@@ -1311,7 +1428,7 @@ i--;]]></After>
     </Syntaxes>
     <Span>top if keyword or selected if statement</Span>
   </Refactoring>
-  <Refactoring Id="RR0166" Identifier="UseConditionalExpressionInsteadOfIf" Title="Use conditional expression instead of if">
+  <Refactoring Id="RR0166" Identifier="ConvertIfToConditionalOperator" Title="Convert 'if' to ?:">
     <Syntaxes>
       <Syntax>if statement</Syntax>
     </Syntaxes>
@@ -1323,12 +1440,12 @@ i--;]]></After>
     </Syntaxes>
     <Span>method name</Span>
   </Refactoring>
-  <Refactoring Id="RR0168" Identifier="UseEmptyStringLiteralInsteadOfStringEmpty" Title="Use &quot;&quot; instead of string.Empty">
+  <Refactoring Id="RR0168" Identifier="UseEmptyStringLiteralInsteadOfStringEmpty" Title="Use &quot;&quot; instead of string.Empty" IsObsolete="true">
     <Syntaxes>
       <Syntax>string.Empty field</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0169" Identifier="UseExpressionBodiedMember" Title="Use expression-bodied member">
+  <Refactoring Id="RR0169" Identifier="ConvertBlockBodyToExpressionBody" Title="Convert block body to expression-body">
     <Syntaxes>
       <Syntax>method</Syntax>
       <Syntax>property</Syntax>
@@ -1343,7 +1460,7 @@ i--;]]></After>
     </Syntaxes>
     <Span>delegate keyword</Span>
   </Refactoring>
-  <Refactoring Id="RR0171" Identifier="UseStringEmptyInsteadOfEmptyStringLiteral" Title="Use string.Empty instead of &quot;&quot;" IsEnabledByDefault="false">
+  <Refactoring Id="RR0171" Identifier="ConvertEmptyStringToStringEmpty" Title="Convert &quot;&quot; to string.Empty" IsEnabledByDefault="false">
     <Syntaxes>
       <Syntax>empty string literal</Syntax>
     </Syntaxes>
@@ -1443,7 +1560,7 @@ i--;]]></After>
       <Syntax>access modifier</Syntax>
     </Syntaxes>
   </Refactoring>
-  <Refactoring Id="RR0187" Identifier="FormatConstraintClauses" Title="Format constraint clauses">
+  <Refactoring Id="RR0187" Identifier="WrapConstraintClauses" Title="Wrap constraint clauses">
     <Syntaxes>
       <Syntax>type parameter constraint clause</Syntax>
     </Syntaxes>
@@ -1461,7 +1578,7 @@ i--;]]></After>
       </Sample>
     </Samples>
   </Refactoring>
-  <Refactoring Id="RR0188" Identifier="ReplaceForEachWithForAndReverseLoop" Title="Replace foreach with for and reverse loop" IsEnabledByDefault="false">
+  <Refactoring Id="RR0188" Identifier="ConvertForEachToForAndReverseLoop" Title="Convert 'foreach' to 'for' and reverse loop" IsEnabledByDefault="false">
     <Syntaxes>
       <Syntax>foreach statement</Syntax>
     </Syntaxes>
@@ -1568,7 +1685,7 @@ return false;]]></After>
       </Sample>
     </Samples>
   </Refactoring>
-  <Refactoring Id="RR0192" Identifier="ReplaceCommentWithDocumentationComment" Title="Replace comment with documentation comment">
+  <Refactoring Id="RR0192" Identifier="ConvertCommentToDocumentationComment" Title="Convert comment to documentation comment">
     <Syntaxes>
       <Syntax>single-line comment</Syntax>
     </Syntaxes>
@@ -1587,7 +1704,7 @@ public class Foo
       </Sample>
     </Samples>
   </Refactoring>
-  <Refactoring Id="RR0193" Identifier="ReplaceInterpolatedStringWithConcatenation" Title="Replace interpolated string with concatenation">
+  <Refactoring Id="RR0193" Identifier="ConvertInterpolatedStringToConcatenation" Title="Convert interpolated string to concatenation">
     <Syntaxes>
       <Syntax>interpolated string</Syntax>
     </Syntaxes>
@@ -1754,7 +1871,7 @@ else
       </Sample>
     </Samples>
   </Refactoring>
-  <Refactoring Id="RR0201" Identifier="ReplaceInterpolatedStringWithStringFormat" Title="Replace interpolated string with string.Format">
+  <Refactoring Id="RR0201" Identifier="ConvertInterpolatedStringToStringFormat" Title="Convert interpolated string to 'string.Format'">
     <Syntaxes>
       <Syntax>interpolated string</Syntax>
     </Syntaxes>
@@ -1863,7 +1980,7 @@ private object z;]]></After>
       </Sample>
     </Samples>
   </Refactoring>
-  <Refactoring Id="RR0206" Identifier="ReplaceForEachWithEnumerator" Title="Replace foreach with enumerator">
+  <Refactoring Id="RR0206" Identifier="UseEnumeratorExplicitly" Title="Use enumerator explicitly">
     <Syntaxes>
       <Syntax>foreach statement</Syntax>
     </Syntaxes>
@@ -2137,6 +2254,121 @@ else
 {
     return 0;
 }]]></After>
+      </Sample>
+    </Samples>
+  </Refactoring>
+  <Refactoring Id="RR0212" Identifier="DuplicateSwitchSection" Title="Duplicate switch section">
+    <Syntaxes>
+      <Syntax>switch section</Syntax>
+    </Syntaxes>
+    <Span>close brace or empty line after switch section</Span>
+    <Samples>
+      <Sample>
+        <Before>
+          <![CDATA[switch (s)
+{
+    case "a":
+        {
+            // ...
+
+            break;
+        }
+    default:
+        {
+            break;
+        }
+}]]>
+        </Before>
+        <After>
+          <![CDATA[switch (s)
+{
+    case "a":
+        {
+            // ...
+
+            break;
+        }
+    case "a":
+        {
+            // ...
+
+            break;
+        }
+    default:
+        {
+            break;
+        }
+}]]>
+        </After>
+      </Sample>
+    </Samples>
+  </Refactoring>
+  <Refactoring Id="RR0213" Identifier="AddParameterToInterfaceMember" Title="Add parameter to interface member">
+    <Syntaxes>
+      <Syntax>method declaration</Syntax>
+      <Syntax>indexer declaration</Syntax>
+    </Syntaxes>
+    <Span>method name or 'this' keyword</Span>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[interface IFoo
+{
+    void Bar(object p);
+}
+
+class Foo : IFoo
+{
+    public void Bar(object p, object p2)
+    {
+    }
+}]]></Before>
+        <After><![CDATA[interface IFoo
+{
+    void Bar(object p, object p2);
+}
+
+class Foo : IFoo
+{
+    public void Bar(object p, object p2)
+    {
+    }
+}]]></After>
+      </Sample>
+    </Samples>
+  </Refactoring>
+  <Refactoring Id="RR0214" Identifier="ConvertSwitchExpressionToSwitchStatement" Title="Convert 'switch' expression to 'switch' statement">
+    <Syntaxes>
+      <Syntax>switch expression</Syntax>
+    </Syntaxes>
+    <Span>switch keyword</Span>
+    <Samples>
+      <Sample>
+        <Before><![CDATA[return dayOfWeek switch
+{
+    DayOfWeek.Monday => 1,
+    DayOfWeek.Tuesday => 2,
+    DayOfWeek.Wednesday => 3,
+    DayOfWeek.Thursday => 4,
+    DayOfWeek.Friday => 5,
+    _ => throw new Exception(),
+};
+]]></Before>
+        <After><![CDATA[switch (dayOfWeek)
+{
+    case DayOfWeek.Monday:
+        return 1;
+    case DayOfWeek.Tuesday:
+        return 2;
+    case DayOfWeek.Wednesday:
+        return 3;
+    case DayOfWeek.Thursday:
+        return 4;
+    case DayOfWeek.Friday:
+        return 5;
+    default:
+        throw new Exception();
+}
+]]></After>
       </Sample>
     </Samples>
   </Refactoring>

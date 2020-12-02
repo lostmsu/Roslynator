@@ -10,7 +10,7 @@ using Roslynator.CSharp.Analysis.UnusedMember;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1213RemoveUnusedMemberDeclarationTests : AbstractCSharpCodeFixVerifier
+    public class RCS1213RemoveUnusedMemberDeclarationTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.RemoveUnusedMemberDeclaration;
 
@@ -252,6 +252,100 @@ class C
 #endif
     {
         M();
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveUnusedMemberDeclaration)]
+        public async Task TestNoDiagnostic_LateBound()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M()
+    {
+        dynamic x = 1;
+        Foo(x);
+
+        x = 1.1;
+        Foo(x);
+    }
+
+    void Foo(int _) => M();
+
+    void Foo(double _) => M();
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveUnusedMemberDeclaration)]
+        public async Task TestNoDiagnostic_StructLayoutAttribute()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential)]
+struct S
+{
+    private int F;
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveUnusedMemberDeclaration)]
+        public async Task TestNoDiagnostic_DelegateAsTypeArgument()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System.Collections.Generic;
+
+class C
+{
+    private delegate string D(int value);
+
+    public void M()
+    {
+        var x = new Dictionary<string, D>();
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveUnusedMemberDeclaration)]
+        public async Task TestNoDiagnostic_OverloadResolutionFailure()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+
+class C
+{
+    readonly CustomTimer customtimer = new CustomTimer();
+
+    C()
+    {
+        customtimer.Tick += CustomTimer_Tick;
+    }
+
+    void CustomTimer_Tick(object _, EventArgs __)
+    {
+    }
+}
+", options: Options.AddAllowedCompilerDiagnosticId("CS0246"));
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.RemoveUnusedMemberDeclaration)]
+        public async Task TestNoDiagnostic_Stackalloc()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+
+class C
+{
+    private const int K = 64;
+
+    public void M()
+    {
+        Span<char> buffer = stackalloc char[K];
     }
 }
 ");

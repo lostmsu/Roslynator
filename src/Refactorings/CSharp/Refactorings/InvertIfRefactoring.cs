@@ -42,13 +42,14 @@ namespace Roslynator.CSharp.Refactorings
                         && !elseStatement.IsKind(SyntaxKind.IfStatement))
                     {
                         context.RegisterRefactoring(
-                            "Invert if-else",
+                            "Invert if",
                             ct => InvertIfElseAsync(document, ifStatement, ct),
                             RefactoringIdentifiers.InvertIfElse);
                     }
                 }
             }
-            else if (context.IsRefactoringEnabled(RefactoringIdentifiers.InvertIf))
+            else if (context.IsRefactoringEnabled(RefactoringIdentifiers.InvertIf)
+                && ifStatement.IsTopmostIf())
             {
                 InvertIfAnalysis analysis = InvertIfAnalysis.Create(ifStatement, statement);
 
@@ -73,7 +74,7 @@ namespace Roslynator.CSharp.Refactorings
         private static async Task<Document> InvertIfElseAsync(
             Document document,
             IfStatementSyntax ifStatement,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -100,7 +101,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             IfStatementSyntax ifStatement,
             bool recursive = false,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -132,7 +133,7 @@ namespace Roslynator.CSharp.Refactorings
             }
             else
             {
-                IfStatementSyntax lastIfStatement = ifStatement;
+                IfStatementSyntax lastIfStatement;
 
                 InvertIfAnalysis a = analysis.AnalyzeNextStatement();
 
@@ -336,7 +337,7 @@ namespace Roslynator.CSharp.Refactorings
                         i++;
                     }
 
-                    lastStatement = lastStatement ?? next;
+                    lastStatement ??= next;
                 }
             }
 

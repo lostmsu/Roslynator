@@ -4,14 +4,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
-using Roslynator.CodeFixes;
 using Roslynator.Formatting;
 using Roslynator.Host.Mef;
 using static Roslynator.Logger;
@@ -20,7 +18,7 @@ namespace Roslynator.CommandLine
 {
     internal class FormatCommand : MSBuildWorkspaceCommand
     {
-        public FormatCommand(FormatCommandLineOptions options, string language) : base(language)
+        public FormatCommand(FormatCommandLineOptions options, in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
         }
@@ -29,34 +27,7 @@ namespace Roslynator.CommandLine
 
         public override async Task<CommandResult> ExecuteAsync(ProjectOrSolution projectOrSolution, CancellationToken cancellationToken = default)
         {
-            ImmutableArray<string> supportedDiagnosticIds = Options
-                .GetSupportedDiagnostics()
-                .Select(f => f.Id)
-                .ToImmutableArray();
-
-            if (supportedDiagnosticIds.Any())
-            {
-                var codeFixerOptions = new CodeFixerOptions(
-                    severityLevel: DiagnosticSeverity.Hidden,
-                    ignoreCompilerErrors: true,
-                    ignoreAnalyzerReferences: true,
-                    supportedDiagnosticIds: supportedDiagnosticIds,
-                    projectNames: Options.Projects,
-                    ignoredProjectNames: Options.IgnoredProjects,
-                    language: Language,
-                    batchSize: 1000,
-                    format: true);
-
-                CultureInfo culture = (Options.Culture != null) ? CultureInfo.GetCultureInfo(Options.Culture) : null;
-
-                return await FixCommand.FixAsync(
-                    projectOrSolution,
-                    RoslynatorAnalyzerAssemblies.AnalyzersAndCodeFixes,
-                    codeFixerOptions,
-                    culture,
-                    cancellationToken);
-            }
-            else if (projectOrSolution.IsProject)
+            if (projectOrSolution.IsProject)
             {
                 Project project = projectOrSolution.AsProject();
 
@@ -86,24 +57,26 @@ namespace Roslynator.CommandLine
 
             var changedDocuments = new ConcurrentBag<ImmutableArray<DocumentId>>();
 
-            Parallel.ForEach(FilterProjects(solution, Options), project =>
-            {
-                WriteLine($"  Analyze '{project.Name}'", Verbosity.Minimal);
-
-                ISyntaxFactsService syntaxFacts = MefWorkspaceServices.Default.GetService<ISyntaxFactsService>(project.Language);
-
-                Project newProject = CodeFormatter.FormatProjectAsync(project, syntaxFacts, options, cancellationToken).Result;
-
-                ImmutableArray<DocumentId> formattedDocuments = CodeFormatter.GetFormattedDocumentsAsync(project, newProject, syntaxFacts).Result;
-
-                if (formattedDocuments.Any())
+            Parallel.ForEach(
+                FilterProjects(solution),
+                project =>
                 {
-                    changedDocuments.Add(formattedDocuments);
-                    LogHelpers.WriteFormattedDocuments(formattedDocuments, project, solutionDirectory);
-                }
+                    WriteLine($"  Analyze '{project.Name}'", Verbosity.Minimal);
 
-                WriteLine($"  Done analyzing '{project.Name}'", Verbosity.Normal);
-            });
+                    ISyntaxFactsService syntaxFacts = MefWorkspaceServices.Default.GetService<ISyntaxFactsService>(project.Language);
+
+                    Project newProject = CodeFormatter.FormatProjectAsync(project, syntaxFacts, options, cancellationToken).Result;
+
+                    ImmutableArray<DocumentId> formattedDocuments = CodeFormatter.GetFormattedDocumentsAsync(project, newProject, syntaxFacts).Result;
+
+                    if (formattedDocuments.Any())
+                    {
+                        changedDocuments.Add(formattedDocuments);
+                        LogHelpers.WriteFormattedDocuments(formattedDocuments, project, solutionDirectory);
+                    }
+
+                    WriteLine($"  Done analyzing '{project.Name}'", Verbosity.Normal);
+                });
 
             if (changedDocuments.Count > 0)
             {
@@ -125,10 +98,10 @@ namespace Roslynator.CommandLine
                 }
             }
 
-            WriteLine();
-            WriteLine($"{changedDocuments.Count} {((changedDocuments.Count == 1) ? "document" : "documents")} formatted", ConsoleColor.Green, Verbosity.Normal);
-            WriteLine();
+            WriteLine(Verbosity.Minimal);
+            WriteLine($"{changedDocuments.Count} {((changedDocuments.Count == 1) ? "document" : "documents")} formatted", ConsoleColor.Green, Verbosity.Minimal);
 
+            WriteLine(Verbosity.Minimal);
             WriteLine($"Done formatting solution '{solution.FilePath}' in {stopwatch.Elapsed:mm\\:ss\\.ff}", Verbosity.Minimal);
         }
 
@@ -161,9 +134,8 @@ namespace Roslynator.CommandLine
                 }
             }
 
-            WriteLine();
-            WriteLine($"{formattedDocuments.Length} {((formattedDocuments.Length == 1) ? "document" : "documents")} formatted", ConsoleColor.Green, Verbosity.Normal);
-            WriteLine();
+            WriteLine(Verbosity.Minimal);
+            WriteLine($"{formattedDocuments.Length} {((formattedDocuments.Length == 1) ? "document" : "documents")} formatted", ConsoleColor.Green, Verbosity.Minimal);
         }
 
         protected override void OperationCanceled(OperationCanceledException ex)

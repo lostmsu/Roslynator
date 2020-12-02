@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -19,15 +20,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSymbolAction(AnalyzeEvent, SymbolKind.Event);
+            context.RegisterSymbolAction(f => AnalyzeEvent(f), SymbolKind.Event);
         }
 
-        public static void AnalyzeEvent(SymbolAnalysisContext context)
+        private static void AnalyzeEvent(SymbolAnalysisContext context)
         {
             var eventSymbol = (IEventSymbol)context.Symbol;
 
@@ -53,6 +51,9 @@ namespace Roslynator.CSharp.Analysis
             if (delegateInvokeMethod == null)
                 return;
 
+            if (!delegateInvokeMethod.ReturnType.IsVoid())
+                return;
+
             ImmutableArray<IParameterSymbol> parameters = delegateInvokeMethod.Parameters;
 
             if (parameters.Length != 2)
@@ -68,35 +69,36 @@ namespace Roslynator.CSharp.Analysis
 
             TypeSyntax type = GetTypeSyntax(node);
 
+            if (type == null)
+                return;
+
             DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.UseGenericEventHandler, type);
         }
 
         private static TypeSyntax GetTypeSyntax(SyntaxNode node)
         {
-            switch (node.Kind())
+            switch (node)
             {
-                case SyntaxKind.EventDeclaration:
+                case EventDeclarationSyntax eventDeclaration:
                     {
-                        return ((EventDeclarationSyntax)node).Type;
+                        return eventDeclaration.Type;
                     }
-                case SyntaxKind.VariableDeclarator:
+                case VariableDeclaratorSyntax declarator:
                     {
-                        var declarator = (VariableDeclaratorSyntax)node;
-
-                        SyntaxNode parent = declarator.Parent;
-
-                        if (parent?.Kind() == SyntaxKind.VariableDeclaration)
-                        {
-                            var declaration = (VariableDeclarationSyntax)parent;
-
+                        if (declarator.Parent is VariableDeclarationSyntax declaration)
                             return declaration.Type;
-                        }
 
+                        Debug.Fail(declarator.Parent.Kind().ToString());
+                        break;
+                    }
+                default:
+                    {
+                        Debug.Fail(node.Kind().ToString());
                         break;
                     }
             }
 
-            throw new InvalidOperationException();
+            return null;
         }
     }
 }

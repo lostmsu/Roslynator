@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Roslynator.CodeFixes;
+using Roslynator.CSharp.Analysis;
 using Roslynator.CSharp.Refactorings;
 
 namespace Roslynator.CSharp.CodeFixes
@@ -21,9 +22,8 @@ namespace Roslynator.CSharp.CodeFixes
             get
             {
                 return ImmutableArray.Create(
-                    DiagnosticIdentifiers.AvoidInterpolatedStringWithNoInterpolation,
                     DiagnosticIdentifiers.UnnecessaryInterpolatedString,
-                    DiagnosticIdentifiers.ReplaceInterpolatedStringWithConcatenation);
+                    DiagnosticIdentifiers.ConvertInterpolatedStringToConcatenation);
             }
         }
 
@@ -34,37 +34,42 @@ namespace Roslynator.CSharp.CodeFixes
             if (!TryFindFirstAncestorOrSelf(root, context.Span, out InterpolatedStringExpressionSyntax interpolatedString))
                 return;
 
+            Document document = context.Document;
+
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
                 switch (diagnostic.Id)
                 {
-                    case DiagnosticIdentifiers.AvoidInterpolatedStringWithNoInterpolation:
-                        {
-                            CodeAction codeAction = CodeAction.Create(
-                                "Remove $",
-                                cancellationToken => ReplaceInterpolatedStringWithStringLiteralRefactoring.RefactorAsync(context.Document, interpolatedString, cancellationToken),
-                                GetEquivalenceKey(diagnostic.Id));
-
-                            context.RegisterCodeFix(codeAction, diagnostic);
-                            break;
-                        }
                     case DiagnosticIdentifiers.UnnecessaryInterpolatedString:
                         {
-                            var interpolation = (InterpolationSyntax)interpolatedString.Contents[0];
+                            if (ConvertInterpolatedStringToStringLiteralAnalysis.IsFixable(interpolatedString))
+                            {
+                                CodeAction codeAction = CodeAction.Create(
+                                    "Remove '$'",
+                                    ct => ConvertInterpolatedStringToStringLiteralRefactoring.RefactorAsync(document, interpolatedString, ct),
+                                    GetEquivalenceKey(diagnostic.Id));
 
-                            CodeAction codeAction = CodeAction.Create(
-                                $"Replace interpolated string with '{interpolation.Expression}'",
-                                cancellationToken => UnnecessaryInterpolatedStringRefactoring.RefactorAsync(context.Document, interpolatedString, cancellationToken),
-                                GetEquivalenceKey(diagnostic.Id));
+                                context.RegisterCodeFix(codeAction, diagnostic);
+                            }
+                            else
+                            {
+                                var interpolation = (InterpolationSyntax)interpolatedString.Contents[0];
 
-                            context.RegisterCodeFix(codeAction, diagnostic);
+                                CodeAction codeAction = CodeAction.Create(
+                                    $"Replace interpolated string with '{interpolation.Expression}'",
+                                    ct => UnnecessaryInterpolatedStringRefactoring.RefactorAsync(document, interpolatedString, ct),
+                                    GetEquivalenceKey(diagnostic.Id));
+
+                                context.RegisterCodeFix(codeAction, diagnostic);
+                            }
+
                             break;
                         }
-                    case DiagnosticIdentifiers.ReplaceInterpolatedStringWithConcatenation:
+                    case DiagnosticIdentifiers.ConvertInterpolatedStringToConcatenation:
                         {
                             CodeAction codeAction = CodeAction.Create(
-                                "Replace interpolated string with concatenation",
-                                cancellationToken => ReplaceInterpolatedStringWithConcatenationRefactoring.RefactorAsync(context.Document, interpolatedString, cancellationToken),
+                                "Convert to concatenation",
+                                cancellationToken => ConvertInterpolatedStringToConcatenationRefactoring.RefactorAsync(document, interpolatedString, cancellationToken),
                                 GetEquivalenceKey(diagnostic.Id));
 
                             context.RegisterCodeFix(codeAction, diagnostic);

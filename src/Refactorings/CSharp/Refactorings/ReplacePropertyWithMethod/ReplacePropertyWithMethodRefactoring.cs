@@ -13,7 +13,7 @@ namespace Roslynator.CSharp.Refactorings.ReplacePropertyWithMethod
 {
     internal static class ReplacePropertyWithMethodRefactoring
     {
-        private static readonly string[] _prefixes = new string[]
+        private static readonly string[] _prefixes = new[]
         {
             "Is",
             "Has",
@@ -55,7 +55,7 @@ namespace Roslynator.CSharp.Refactorings.ReplacePropertyWithMethod
         public static async Task<Solution> RefactorAsync(
             Document document,
             PropertyDeclarationSyntax property,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             Solution solution = document.Solution();
 

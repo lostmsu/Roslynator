@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Threading;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
@@ -21,11 +23,36 @@ namespace Roslynator.VisualStudio
     {
         private FileSystemWatcher _watcher;
 
+        internal static AbstractPackage Instance { get; private set; }
+
         private string SolutionDirectoryPath { get; set; }
+
         private string ConfigFilePath { get; set; }
+
+        public GeneralOptionsPage GeneralOptionsPage
+        {
+            get { return (GeneralOptionsPage)GetDialogPage(typeof(GeneralOptionsPage)); }
+        }
+
+        public RefactoringsOptionsPage RefactoringsOptionsPage
+        {
+            get { return (RefactoringsOptionsPage)GetDialogPage(typeof(RefactoringsOptionsPage)); }
+        }
+
+        public CodeFixesOptionsPage CodeFixesOptionsPage
+        {
+            get { return (CodeFixesOptionsPage)GetDialogPage(typeof(CodeFixesOptionsPage)); }
+        }
+
+        public AnalyzersOptionsPage AnalyzersOptionsPage
+        {
+            get { return (AnalyzersOptionsPage)GetDialogPage(typeof(AnalyzersOptionsPage)); }
+        }
 
         protected override async System.Threading.Tasks.Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
+            Instance = this;
+
             await base.InitializeAsync(cancellationToken, progress);
 
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
@@ -42,16 +69,15 @@ namespace Roslynator.VisualStudio
                 AfterOpenSolution();
             }
 
-            SolutionEvents.OnAfterOpenSolution += AfterOpenSolution;
-            SolutionEvents.OnAfterCloseSolution += AfterCloseSolution;
+            SolutionEvents.OnAfterOpenSolution += (sender, args) => AfterOpenSolution(sender, args);
+            SolutionEvents.OnAfterCloseSolution += (sender, args) => AfterCloseSolution(sender, args);
         }
 
         public void InitializeSettings()
         {
-            var generalOptionsPage = (GeneralOptionsPage)GetDialogPage(typeof(GeneralOptionsPage));
-            var refactoringsOptionsPage = (RefactoringsOptionsPage)GetDialogPage(typeof(RefactoringsOptionsPage));
-            var codeFixesOptionsPage = (CodeFixesOptionsPage)GetDialogPage(typeof(CodeFixesOptionsPage));
-            var globalSuppressionsOptionsPage = (GlobalSuppressionsOptionsPage)GetDialogPage(typeof(GlobalSuppressionsOptionsPage));
+            GeneralOptionsPage generalOptionsPage = GeneralOptionsPage;
+            RefactoringsOptionsPage refactoringsOptionsPage = RefactoringsOptionsPage;
+            CodeFixesOptionsPage codeFixesOptionsPage = CodeFixesOptionsPage;
 
             Version currentVersion = typeof(GeneralOptionsPage).Assembly.GetName().Version;
 
@@ -62,14 +88,12 @@ namespace Roslynator.VisualStudio
                 generalOptionsPage.SaveSettingsToStorage();
             }
 
-            codeFixesOptionsPage.CheckNewItemsDisabledByDefault();
-            refactoringsOptionsPage.CheckNewItemsDisabledByDefault();
-            globalSuppressionsOptionsPage.CheckNewItemsDisabledByDefault();
+            refactoringsOptionsPage.CheckNewItemsDisabledByDefault(CodeAnalysisConfiguration.Current.GetDisabledRefactorings());
+            codeFixesOptionsPage.CheckNewItemsDisabledByDefault(CodeAnalysisConfiguration.Current.GetDisabledCodeFixes());
 
-            SettingsManager.Instance.UpdateVisualStudioSettings(generalOptionsPage);
-            SettingsManager.Instance.UpdateVisualStudioSettings(refactoringsOptionsPage);
-            SettingsManager.Instance.UpdateVisualStudioSettings(codeFixesOptionsPage);
-            SettingsManager.Instance.UpdateVisualStudioSettings(globalSuppressionsOptionsPage);
+            generalOptionsPage.ApplyTo(Settings.Instance);
+            refactoringsOptionsPage.ApplyTo(Settings.Instance);
+            codeFixesOptionsPage.ApplyTo(Settings.Instance);
         }
 
         private void AfterOpenSolution(object sender = null, OpenSolutionEventArgs e = null)
@@ -81,7 +105,7 @@ namespace Roslynator.VisualStudio
                 && !string.IsNullOrEmpty(solutionFileName))
             {
                 SolutionDirectoryPath = Path.GetDirectoryName(solutionFileName);
-                ConfigFilePath = Path.Combine(SolutionDirectoryPath, ConfigFileSettings.FileName);
+                ConfigFilePath = Path.Combine(SolutionDirectoryPath, CodeAnalysisConfiguration.ConfigFileName);
             }
 
             UpdateSettings();
@@ -103,28 +127,16 @@ namespace Roslynator.VisualStudio
 
         private void UpdateSettings()
         {
-            SettingsManager.Instance.ConfigFileSettings = LoadConfigFileSettings();
-            SettingsManager.Instance.ApplyTo(RefactoringSettings.Current);
-            SettingsManager.Instance.ApplyTo(CodeFixSettings.Current);
-            SettingsManager.Instance.ApplyTo(AnalyzerSettings.Current);
+            Settings.Instance.ConfigFile = LoadConfigFileSettings();
+            Settings.Instance.ApplyTo(AnalyzerSettings.Current);
+            Settings.Instance.ApplyTo(RefactoringSettings.Current);
+            Settings.Instance.ApplyTo(CodeFixSettings.Current);
 
-            ConfigFileSettings LoadConfigFileSettings()
+            CodeAnalysisConfiguration LoadConfigFileSettings()
             {
-                if (!File.Exists(ConfigFilePath))
-                    return null;
-
-                try
+                if (File.Exists(ConfigFilePath))
                 {
-                    return ConfigFileSettings.Load(ConfigFilePath);
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
-                catch (SecurityException)
-                {
+                    return CodeAnalysisConfiguration.LoadAndCatchIfThrows(ConfigFilePath, ex => Debug.Fail(ex.ToString()));
                 }
 
                 return null;
@@ -136,7 +148,7 @@ namespace Roslynator.VisualStudio
             if (!Directory.Exists(SolutionDirectoryPath))
                 return;
 
-            _watcher = new FileSystemWatcher(SolutionDirectoryPath, ConfigFileSettings.FileName)
+            _watcher = new FileSystemWatcher(SolutionDirectoryPath, CodeAnalysisConfiguration.ConfigFileName)
             {
                 EnableRaisingEvents = true,
                 IncludeSubdirectories = false,
@@ -145,6 +157,13 @@ namespace Roslynator.VisualStudio
             _watcher.Changed += (object sender, FileSystemEventArgs e) => UpdateSettings();
             _watcher.Created += (object sender, FileSystemEventArgs e) => UpdateSettings();
             _watcher.Deleted += (object sender, FileSystemEventArgs e) => UpdateSettings();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            Instance = null;
+
+            base.Dispose(disposing);
         }
     }
 }

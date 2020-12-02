@@ -36,8 +36,8 @@ namespace Roslynator.CSharp.Refactorings
                     SwapBinaryOperandsRefactoring.ComputeRefactoring(context, binaryExpression);
             }
 
-            if (context.IsRefactoringEnabled(RefactoringIdentifiers.FormatBinaryExpression))
-                FormatBinaryExpressionRefactoring.ComputeRefactorings(context, binaryExpression);
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.WrapBinaryExpression))
+                WrapBinaryExpressionRefactoring.ComputeRefactorings(context, binaryExpression);
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.ExpandCoalesceExpression)
                 && operatorToken.Span.Contains(context.Span))
@@ -46,9 +46,9 @@ namespace Roslynator.CSharp.Refactorings
             }
 
             if (context.IsAnyRefactoringEnabled(
-                    RefactoringIdentifiers.ExtractExpressionFromCondition,
-                    RefactoringIdentifiers.JoinStringExpressions,
-                    RefactoringIdentifiers.UseStringBuilderInsteadOfConcatenation)
+                RefactoringIdentifiers.ExtractExpressionFromCondition,
+                RefactoringIdentifiers.JoinStringExpressions,
+                RefactoringIdentifiers.UseStringBuilderInsteadOfConcatenation)
                 && !context.Span.IsEmpty
                 && binaryExpression.IsKind(SyntaxKind.AddExpression, SyntaxKind.LogicalAndExpression, SyntaxKind.LogicalOrExpression))
             {
@@ -87,7 +87,7 @@ namespace Roslynator.CSharp.Refactorings
                 if (ReplaceAsWithCastAnalysis.IsFixable(binaryExpression, semanticModel, context.CancellationToken))
                 {
                     context.RegisterRefactoring(
-                        "Replace as with cast",
+                        ReplaceAsWithCastRefactoring.Title,
                         cancellationToken => ReplaceAsWithCastRefactoring.RefactorAsync(context.Document, binaryExpression, cancellationToken),
                         RefactoringIdentifiers.ReplaceAsWithCast);
                 }

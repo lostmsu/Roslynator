@@ -17,7 +17,7 @@ namespace Roslynator.CommandLine
 {
     internal class AnalyzeCommand : MSBuildWorkspaceCommand
     {
-        public AnalyzeCommand(AnalyzeCommandLineOptions options, DiagnosticSeverity severityLevel, string language) : base(language)
+        public AnalyzeCommand(AnalyzeCommandLineOptions options, DiagnosticSeverity severityLevel, in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
             SeverityLevel = severityLevel;
@@ -39,10 +39,7 @@ namespace Roslynator.CommandLine
                 logAnalyzerExecutionTime: Options.ExecutionTime,
                 severityLevel: SeverityLevel,
                 supportedDiagnosticIds: Options.SupportedDiagnostics,
-                ignoredDiagnosticIds: Options.IgnoredDiagnostics,
-                projectNames: Options.Projects,
-                ignoredProjectNames: Options.IgnoredProjects,
-                language: Language);
+                ignoredDiagnosticIds: Options.IgnoredDiagnostics);
 
             IEnumerable<AnalyzerAssembly> analyzerAssemblies = Options.AnalyzerAssemblies
                 .SelectMany(path => AnalyzerAssemblyLoader.LoadFrom(path, loadFixers: false).Select(info => info.AnalyzerAssembly));
@@ -58,15 +55,7 @@ namespace Roslynator.CommandLine
             {
                 Project project = projectOrSolution.AsProject();
 
-                WriteLine($"Analyze '{project.Name}'", ConsoleColor.Cyan, Verbosity.Minimal);
-
-                Stopwatch stopwatch = Stopwatch.StartNew();
-
                 ProjectAnalysisResult result = await codeAnalyzer.AnalyzeProjectAsync(project, cancellationToken);
-
-                stopwatch.Stop();
-
-                WriteLine($"Done analyzing project '{project.FilePath}' in {stopwatch.Elapsed:mm\\:ss\\.ff}", Verbosity.Minimal);
 
                 if (Options.Output != null
                     && result.Diagnostics.Any())
@@ -78,7 +67,9 @@ namespace Roslynator.CommandLine
             {
                 Solution solution = projectOrSolution.AsSolution();
 
-                ImmutableArray<ProjectAnalysisResult> results = await codeAnalyzer.AnalyzeSolutionAsync(solution, cancellationToken);
+                var projectFilter = new ProjectFilter(Options.Projects, Options.IgnoredProjects, Language);
+
+                ImmutableArray<ProjectAnalysisResult> results = await codeAnalyzer.AnalyzeSolutionAsync(solution, f => projectFilter.IsMatch(f), cancellationToken);
 
                 if (Options.Output != null
                     && results.Any(f => f.Diagnostics.Any()))

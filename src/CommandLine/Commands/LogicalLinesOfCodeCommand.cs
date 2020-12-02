@@ -16,7 +16,7 @@ namespace Roslynator.CommandLine
 {
     internal class LogicalLinesOfCodeCommand : AbstractLinesOfCodeCommand
     {
-        public LogicalLinesOfCodeCommand(LogicalLinesOfCodeCommandLineOptions options, string language) : base(language)
+        public LogicalLinesOfCodeCommand(LogicalLinesOfCodeCommandLineOptions options, in ProjectFilter projectFilter) : base(projectFilter)
         {
             Options = options;
         }
@@ -77,7 +77,7 @@ namespace Roslynator.CommandLine
         {
             WriteLine($"Count logical lines for solution '{solution.FilePath}'", ConsoleColor.Cyan, Verbosity.Minimal);
 
-            IEnumerable<Project> projects = FilterProjects(solution, Options);
+            IEnumerable<Project> projects = FilterProjects(solution);
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -119,9 +119,12 @@ namespace Roslynator.CommandLine
             string totalPreprocessorDirectiveLines = totalPreprocessorDirectiveLineCount.ToString("n0");
             string totalLines = totalLineCount.ToString("n0");
 
-            int maxDigits = Math.Max(totalCodeLines.Length,
-                Math.Max(totalWhitespaceLines.Length,
-                    Math.Max(totalCommentLines.Length,
+            int maxDigits = Math.Max(
+                totalCodeLines.Length,
+                Math.Max(
+                    totalWhitespaceLines.Length,
+                    Math.Max(
+                        totalCommentLines.Length,
                         Math.Max(totalPreprocessorDirectiveLines.Length, totalLines.Length))));
 
             WriteLine($"{totalCodeLines.PadLeft(maxDigits)} {totalCodeLineCount / (double)totalLineCount,4:P0} logical lines of code", ConsoleColor.Green, Verbosity.Minimal);

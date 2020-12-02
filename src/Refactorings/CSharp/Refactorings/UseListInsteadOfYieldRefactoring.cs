@@ -69,9 +69,9 @@ namespace Roslynator.CSharp.Refactorings
                 .ToMinimalTypeSyntax(semanticModel, position);
 
             LocalDeclarationStatementSyntax localDeclarationStatement = LocalDeclarationStatement(
-                    VarType(),
-                    name,
-                    EqualsValueClause(ObjectCreationExpression(listType, ArgumentList())));
+                VarType(),
+                name,
+                EqualsValueClause(ObjectCreationExpression(listType, ArgumentList())));
 
             localDeclarationStatement = localDeclarationStatement.WithFormatterAnnotation();
 
@@ -135,10 +135,8 @@ namespace Roslynator.CSharp.Refactorings
 
         private static bool IsParameterCheck(StatementSyntax statement)
         {
-            if (statement.IsKind(SyntaxKind.IfStatement))
+            if (statement is IfStatementSyntax ifStatement)
             {
-                var ifStatement = (IfStatementSyntax)statement;
-
                 return ifStatement.SingleNonBlockStatementOrDefault()?.Kind() == SyntaxKind.ThrowStatement;
             }
 

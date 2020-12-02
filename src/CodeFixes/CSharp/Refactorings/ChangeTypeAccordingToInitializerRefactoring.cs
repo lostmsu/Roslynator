@@ -16,10 +16,10 @@ namespace Roslynator.CSharp.Refactorings
     internal static class ChangeTypeAccordingToInitializerRefactoring
     {
         public static CodeFixRegistrationResult ComputeCodeFix(
-             CodeFixContext context,
-             Diagnostic diagnostic,
-             ExpressionSyntax expression,
-             SemanticModel semanticModel)
+            CodeFixContext context,
+            Diagnostic diagnostic,
+            ExpressionSyntax expression,
+            SemanticModel semanticModel)
         {
             if (!(expression.Parent is EqualsValueClauseSyntax equalsValueClause))
                 return default;
@@ -66,7 +66,7 @@ namespace Roslynator.CSharp.Refactorings
             }
 
             CodeFixRegistrationResult result = default;
-            CodeFixRegistrationResult result2 = default;
+            CodeFixRegistrationResult result2;
 
             if (typeSymbol?.SupportsExplicitDeclaration() == true)
             {

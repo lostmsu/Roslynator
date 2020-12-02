@@ -22,15 +22,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeCoalesceExpression, SyntaxKind.CoalesceExpression);
+            context.RegisterSyntaxNodeAction(f => AnalyzeCoalesceExpression(f), SyntaxKind.CoalesceExpression);
         }
 
-        public static void AnalyzeCoalesceExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeCoalesceExpression(SyntaxNodeAnalysisContext context)
         {
             var coalesceExpression = (BinaryExpressionSyntax)context.Node;
 
@@ -44,10 +41,11 @@ namespace Roslynator.CSharp.Analysis
 
             TextSpan span = GetRedundantSpan(coalesceExpression, info.Left, info.Right, context.SemanticModel, context.CancellationToken);
 
-            if (span == default(TextSpan))
+            if (span == default)
                 return;
 
-            DiagnosticHelpers.ReportDiagnostic(context,
+            DiagnosticHelpers.ReportDiagnostic(
+                context,
                 DiagnosticDescriptors.SimplifyCoalesceExpression,
                 Location.Create(coalesceExpression.SyntaxTree, span));
         }
@@ -66,7 +64,7 @@ namespace Roslynator.CSharp.Analysis
                 case BinaryExpressionPart.Right:
                     return TextSpan.FromBounds(coalesceExpression.OperatorToken.SpanStart, coalesceExpression.Right.Span.End);
                 default:
-                    return default(TextSpan);
+                    return default;
             }
         }
 
@@ -94,7 +92,7 @@ namespace Roslynator.CSharp.Analysis
                     return BinaryExpressionPart.Left;
                 case SyntaxKind.DefaultExpression:
                     {
-                        if (IsDefaultOfReferenceType((DefaultExpressionSyntax)left, semanticModel, cancellationToken))
+                        if (IsDefaultOfReferenceOrNullableType((DefaultExpressionSyntax)left, semanticModel, cancellationToken))
                             return BinaryExpressionPart.Left;
 
                         break;
@@ -129,10 +127,12 @@ namespace Roslynator.CSharp.Analysis
             switch (rightKind)
             {
                 case SyntaxKind.NullLiteralExpression:
-                    return BinaryExpressionPart.Right;
+                    {
+                        return BinaryExpressionPart.Right;
+                    }
                 case SyntaxKind.DefaultExpression:
                     {
-                        if (IsDefaultOfReferenceType((DefaultExpressionSyntax)right, semanticModel, cancellationToken))
+                        if (IsDefaultOfReferenceOrNullableType((DefaultExpressionSyntax)right, semanticModel, cancellationToken))
                             return BinaryExpressionPart.Right;
 
                         break;
@@ -148,12 +148,15 @@ namespace Roslynator.CSharp.Analysis
             return BinaryExpressionPart.None;
         }
 
-        private static bool IsDefaultOfReferenceType(DefaultExpressionSyntax defaultExpression, SemanticModel semanticModel, CancellationToken cancellationToken)
+        private static bool IsDefaultOfReferenceOrNullableType(DefaultExpressionSyntax defaultExpression, SemanticModel semanticModel, CancellationToken cancellationToken)
         {
             TypeSyntax type = defaultExpression.Type;
 
             if (type != null)
             {
+                if (type.IsKind(SyntaxKind.NullableType))
+                    return true;
+
                 ITypeSymbol typeSymbol = semanticModel.GetTypeSymbol(type, cancellationToken);
 
                 if (typeSymbol?.IsErrorType() == false

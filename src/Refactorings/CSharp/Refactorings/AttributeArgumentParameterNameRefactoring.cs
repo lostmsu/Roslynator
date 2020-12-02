@@ -37,7 +37,7 @@ namespace Roslynator.CSharp.Refactorings
                 if (argument.Expression != null
                     && context.Span.Contains(argument.Expression.Span))
                 {
-                    (list ?? (list = new List<AttributeArgumentSyntax>())).Add(argument);
+                    (list ??= new List<AttributeArgumentSyntax>()).Add(argument);
                 }
             }
 
@@ -69,7 +69,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             AttributeArgumentListSyntax argumentList,
             AttributeArgumentSyntax[] arguments,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SemanticModel semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
@@ -83,7 +83,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             AttributeArgumentListSyntax argumentList,
             AttributeArgumentSyntax[] arguments,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             AttributeArgumentListSyntax newArgumentList = RemoveParameterNameSyntaxRewriter.VisitNode(argumentList, arguments)
                 .WithFormatterAnnotation();
@@ -94,7 +94,7 @@ namespace Roslynator.CSharp.Refactorings
         private static AttributeArgumentSyntax AddParameterName(
             AttributeArgumentSyntax argument,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (argument.NameColon?.IsMissing != false)
             {

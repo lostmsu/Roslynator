@@ -4,12 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Roslynator.CSharp.Syntax;
+using Roslynator.CSharp.SyntaxWalkers;
 
 namespace Roslynator.CSharp.Analysis.UnusedParameter
 {
@@ -29,24 +29,21 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeConstructorDeclaration, SyntaxKind.ConstructorDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeOperatorDeclaration, SyntaxKind.OperatorDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeConversionOperatorDeclaration, SyntaxKind.ConversionOperatorDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeIndexerDeclaration, SyntaxKind.IndexerDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeConstructorDeclaration(f), SyntaxKind.ConstructorDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeOperatorDeclaration(f), SyntaxKind.OperatorDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeConversionOperatorDeclaration(f), SyntaxKind.ConversionOperatorDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeIndexerDeclaration(f), SyntaxKind.IndexerDeclaration);
 
-            context.RegisterSyntaxNodeAction(AnalyzeMethodDeclaration, SyntaxKind.MethodDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeLocalFunctionStatement, SyntaxKind.LocalFunctionStatement);
-            context.RegisterSyntaxNodeAction(AnalyzeSimpleLambdaExpression, SyntaxKind.SimpleLambdaExpression);
-            context.RegisterSyntaxNodeAction(AnalyzeParenthesizedLambdaExpression, SyntaxKind.ParenthesizedLambdaExpression);
-            context.RegisterSyntaxNodeAction(AnalyzeAnonymousMethodExpression, SyntaxKind.AnonymousMethodExpression);
+            context.RegisterSyntaxNodeAction(f => AnalyzeMethodDeclaration(f), SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeLocalFunctionStatement(f), SyntaxKind.LocalFunctionStatement);
+            context.RegisterSyntaxNodeAction(f => AnalyzeSimpleLambdaExpression(f), SyntaxKind.SimpleLambdaExpression);
+            context.RegisterSyntaxNodeAction(f => AnalyzeParenthesizedLambdaExpression(f), SyntaxKind.ParenthesizedLambdaExpression);
+            context.RegisterSyntaxNodeAction(f => AnalyzeAnonymousMethodExpression(f), SyntaxKind.AnonymousMethodExpression);
         }
 
-        public static void AnalyzeConstructorDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeConstructorDeclaration(SyntaxNodeAnalysisContext context)
         {
             var constructorDeclaration = (ConstructorDeclarationSyntax)context.Node;
 
@@ -82,7 +79,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             Analyze(context, parameterInfo);
         }
 
-        public static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
 
@@ -123,12 +120,13 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             if (methodSymbol.ImplementsInterfaceMember(allInterfaces: true))
                 return;
 
-            UnusedParameterWalker walker = UnusedParameterWalker.GetInstance(context.SemanticModel, context.CancellationToken);
+            UnusedParameterWalker walker = UnusedParameterWalker.GetInstance();
+            walker.SetValues(context.SemanticModel, context.CancellationToken);
 
             FindUnusedNodes(parameterInfo, walker);
 
             if (walker.Nodes.Count > 0
-                && !IsReferencedAsMethodGroup(methodDeclaration, methodSymbol, context.SemanticModel, context.CancellationToken))
+                && !MethodReferencedAsMethodGroupWalker.IsReferencedAsMethodGroup(methodDeclaration, methodSymbol, context.SemanticModel, context.CancellationToken))
             {
                 foreach (KeyValuePair<string, NodeSymbolInfo> kvp in walker.Nodes)
                     ReportDiagnostic(context, kvp.Value.Node);
@@ -137,7 +135,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             UnusedParameterWalker.Free(walker);
         }
 
-        public static void AnalyzeOperatorDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeOperatorDeclaration(SyntaxNodeAnalysisContext context)
         {
             var operatorDeclaration = (OperatorDeclarationSyntax)context.Node;
 
@@ -155,7 +153,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             Analyze(context, parameterInfo);
         }
 
-        public static void AnalyzeConversionOperatorDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeConversionOperatorDeclaration(SyntaxNodeAnalysisContext context)
         {
             var conversionOperatorDeclaration = (ConversionOperatorDeclarationSyntax)context.Node;
 
@@ -173,7 +171,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             Analyze(context, parameterInfo);
         }
 
-        public static void AnalyzeIndexerDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeIndexerDeclaration(SyntaxNodeAnalysisContext context)
         {
             var indexerDeclaration = (IndexerDeclarationSyntax)context.Node;
 
@@ -205,7 +203,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             Analyze(context, parameterInfo, isIndexer: true);
         }
 
-        public static void AnalyzeLocalFunctionStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeLocalFunctionStatement(SyntaxNodeAnalysisContext context)
         {
             var localFunctionStatement = (LocalFunctionStatementSyntax)context.Node;
 
@@ -228,7 +226,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             Analyze(context, parameterInfo);
         }
 
-        public static void AnalyzeSimpleLambdaExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeSimpleLambdaExpression(SyntaxNodeAnalysisContext context)
         {
             var lambda = (SimpleLambdaExpressionSyntax)context.Node;
 
@@ -251,7 +249,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             Analyze(context, parameterInfo);
         }
 
-        public static void AnalyzeParenthesizedLambdaExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeParenthesizedLambdaExpression(SyntaxNodeAnalysisContext context)
         {
             var lambda = (ParenthesizedLambdaExpressionSyntax)context.Node;
 
@@ -274,7 +272,7 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             Analyze(context, parameterInfo);
         }
 
-        public static void AnalyzeAnonymousMethodExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeAnonymousMethodExpression(SyntaxNodeAnalysisContext context)
         {
             var anonymousMethod = (AnonymousMethodExpressionSyntax)context.Node;
 
@@ -299,7 +297,8 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
 
         private static void Analyze(SyntaxNodeAnalysisContext context, in ParameterInfo parameterInfo, bool isIndexer = false)
         {
-            UnusedParameterWalker walker = UnusedParameterWalker.GetInstance(context.SemanticModel, context.CancellationToken, isIndexer);
+            UnusedParameterWalker walker = UnusedParameterWalker.GetInstance();
+            walker.SetValues(context.SemanticModel, context.CancellationToken, isIndexer);
 
             FindUnusedNodes(parameterInfo, walker);
 
@@ -355,58 +354,6 @@ namespace Roslynator.CSharp.Analysis.UnusedParameter
             else
             {
                 Debug.Fail(node.ToString());
-            }
-        }
-
-        //XPERF:
-        private static bool IsReferencedAsMethodGroup(
-            MethodDeclarationSyntax methodDeclaration,
-            IMethodSymbol methodSymbol,
-            SemanticModel semanticModel,
-            CancellationToken cancellationToken)
-        {
-            string methodName = methodSymbol.Name;
-
-            var typeDeclaration = (TypeDeclarationSyntax)methodDeclaration.Parent;
-
-            foreach (SyntaxNode node in typeDeclaration.DescendantNodes())
-            {
-                if (node.IsKind(SyntaxKind.IdentifierName))
-                {
-                    var identifierName = (IdentifierNameSyntax)node;
-
-                    if (string.Equals(methodName, identifierName.Identifier.ValueText, StringComparison.Ordinal)
-                        && !IsInvoked(identifierName)
-                        && semanticModel.GetSymbol(identifierName, cancellationToken)?.Equals(methodSymbol) == true)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-
-            bool IsInvoked(IdentifierNameSyntax identifierName)
-            {
-                SyntaxNode parent = identifierName.Parent;
-
-                switch (parent.Kind())
-                {
-                    case SyntaxKind.InvocationExpression:
-                        {
-                            return true;
-                        }
-                    case SyntaxKind.SimpleMemberAccessExpression:
-                    case SyntaxKind.MemberBindingExpression:
-                        {
-                            if (parent.IsParentKind(SyntaxKind.InvocationExpression))
-                                return true;
-
-                            break;
-                        }
-                }
-
-                return false;
             }
         }
 

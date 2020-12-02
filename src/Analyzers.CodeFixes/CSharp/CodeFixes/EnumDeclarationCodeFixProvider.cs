@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
@@ -13,7 +14,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Roslynator.CodeFixes;
 using Roslynator.Comparers;
-using Roslynator.CSharp.Refactorings;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using static Roslynator.CSharp.CSharpFactory;
 
@@ -28,9 +28,9 @@ namespace Roslynator.CSharp.CodeFixes
             get
             {
                 return ImmutableArray.Create(
-                    DiagnosticIdentifiers.AddNewLineBeforeEnumMember,
                     DiagnosticIdentifiers.SortEnumMembers,
-                    DiagnosticIdentifiers.EnumShouldDeclareExplicitValues);
+                    DiagnosticIdentifiers.EnumShouldDeclareExplicitValues,
+                    DiagnosticIdentifiers.UseBitShiftOperator);
             }
         }
 
@@ -41,25 +41,17 @@ namespace Roslynator.CSharp.CodeFixes
             if (!TryFindFirstAncestorOrSelf(root, context.Span, out EnumDeclarationSyntax enumDeclaration))
                 return;
 
+            Document document = context.Document;
+
             foreach (Diagnostic diagnostic in context.Diagnostics)
             {
                 switch (diagnostic.Id)
                 {
-                    case DiagnosticIdentifiers.AddNewLineBeforeEnumMember:
-                        {
-                            CodeAction codeAction = CodeAction.Create(
-                                "Add new line",
-                                cancellationToken => AddNewLineBeforeEnumMemberRefactoring.RefactorAsync(context.Document, enumDeclaration, cancellationToken),
-                                GetEquivalenceKey(diagnostic));
-
-                            context.RegisterCodeFix(codeAction, diagnostic);
-                            break;
-                        }
                     case DiagnosticIdentifiers.SortEnumMembers:
                         {
                             CodeAction codeAction = CodeAction.Create(
                                 $"Sort '{enumDeclaration.Identifier}' members",
-                                cancellationToken => SortEnumMembersAsync(context.Document, enumDeclaration, cancellationToken),
+                                cancellationToken => SortEnumMembersAsync(document, enumDeclaration, cancellationToken),
                                 GetEquivalenceKey(diagnostic));
 
                             context.RegisterCodeFix(codeAction, diagnostic);
@@ -87,9 +79,32 @@ namespace Roslynator.CSharp.CodeFixes
                                 return;
                             }
 
+                            bool isFlags = enumSymbol.HasAttribute(MetadataNames.System_FlagsAttribute);
+
                             CodeAction codeAction = CodeAction.Create(
                                 "Declare explicit values",
-                                ct => DeclareExplicitValueAsync(context.Document, enumDeclaration, enumSymbol, values, semanticModel, ct),
+                                ct => DeclareExplicitValueAsync(document, enumDeclaration, enumSymbol, isFlags, useBitShift: false, values, semanticModel, ct),
+                                GetEquivalenceKey(diagnostic));
+
+                            context.RegisterCodeFix(codeAction, diagnostic);
+
+                            if (isFlags)
+                            {
+                                CodeAction codeAction2 = CodeAction.Create(
+                                    "Declare explicit values (and use '<<' operator)",
+                                    ct => DeclareExplicitValueAsync(document, enumDeclaration, enumSymbol, isFlags, useBitShift: true, values, semanticModel, ct),
+                                    GetEquivalenceKey(diagnostic, "BitShift"));
+
+                                context.RegisterCodeFix(codeAction2, diagnostic);
+                            }
+
+                            break;
+                        }
+                    case DiagnosticIdentifiers.UseBitShiftOperator:
+                        {
+                            CodeAction codeAction = CodeAction.Create(
+                                "Use '<<' operator",
+                                ct => UseBitShiftOperatorAsync(document, enumDeclaration, ct),
                                 GetEquivalenceKey(diagnostic));
 
                             context.RegisterCodeFix(codeAction, diagnostic);
@@ -181,26 +196,29 @@ namespace Roslynator.CSharp.CodeFixes
             Document document,
             EnumDeclarationSyntax enumDeclaration,
             INamedTypeSymbol enumSymbol,
+            bool isFlags,
+            bool useBitShift,
             ImmutableArray<ulong> values,
             SemanticModel semanticModel,
             CancellationToken cancellationToken)
         {
-            bool isFlags = enumSymbol.HasAttribute(MetadataNames.System_FlagsAttribute);
+            List<ulong> reservedValues = values.ToList();
 
-            List<ulong> valuesList = values.ToList();
+            SeparatedSyntaxList<EnumMemberDeclarationSyntax> members = enumDeclaration.Members;
 
-            SeparatedSyntaxList<EnumMemberDeclarationSyntax> newMembers = enumDeclaration.Members
-                .Select(enumMember =>
+            SeparatedSyntaxList<EnumMemberDeclarationSyntax> newMembers = members;
+
+            for (int i = 0; i < members.Count; i++)
+            {
+                if (members[i].EqualsValue == null)
                 {
-                    if (enumMember.EqualsValue != null)
-                        return enumMember;
-
-                    IFieldSymbol fieldSymbol = semanticModel.GetDeclaredSymbol(enumMember, cancellationToken);
+                    IFieldSymbol fieldSymbol = semanticModel.GetDeclaredSymbol(members[i], cancellationToken);
 
                     ulong? value = null;
+
                     if (isFlags)
                     {
-                        Optional<ulong> optional = FlagsUtility<ulong>.Instance.GetUniquePowerOfTwo(valuesList);
+                        Optional<ulong> optional = FlagsUtility<ulong>.Instance.GetUniquePowerOfTwo(reservedValues);
 
                         if (optional.HasValue
                             && ConvertHelpers.CanConvert(optional.Value, enumSymbol.EnumUnderlyingType.SpecialType))
@@ -213,20 +231,80 @@ namespace Roslynator.CSharp.CodeFixes
                         value = SymbolUtility.GetEnumValueAsUInt64(fieldSymbol.ConstantValue, enumSymbol);
                     }
 
-                    if (value == null)
-                        return enumMember;
+                    if (value != null)
+                    {
+                        reservedValues.Add(value.Value);
 
-                    valuesList.Add(value.Value);
+                        ExpressionSyntax expression;
 
-                    EqualsValueClauseSyntax equalsValue = EqualsValueClause(NumericLiteralExpression(value.Value, enumSymbol.EnumUnderlyingType.SpecialType));
+                        if (useBitShift
+                            && value.Value > 1)
+                        {
+                            var power = (int)Math.Log(Convert.ToDouble(value.Value), 2);
 
-                    return enumMember.WithEqualsValue(equalsValue);
-                })
-                .ToSeparatedSyntaxList();
+                            expression = LeftShiftExpression(NumericLiteralExpression(1), NumericLiteralExpression(power));
+                        }
+                        else
+                        {
+                            expression = NumericLiteralExpression(value.Value, enumSymbol.EnumUnderlyingType.SpecialType);
+                        }
+
+                        EqualsValueClauseSyntax equalsValue = EqualsValueClause(expression);
+
+                        EnumMemberDeclarationSyntax newMember = members[i].WithEqualsValue(equalsValue);
+
+                        newMembers = newMembers.ReplaceAt(i, newMember);
+                    }
+                }
+            }
 
             EnumDeclarationSyntax newEnumDeclaration = enumDeclaration.WithMembers(newMembers);
 
             return await document.ReplaceNodeAsync(enumDeclaration, newEnumDeclaration, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<Document> UseBitShiftOperatorAsync(
+            Document document,
+            EnumDeclarationSyntax enumDeclaration,
+            CancellationToken cancellationToken)
+        {
+            SemanticModel semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+
+            EnumDeclarationSyntax newEnumDeclaration = enumDeclaration.ReplaceNodes(
+                GetExpressionsToRewrite(),
+                (expression, _) =>
+                {
+                    Optional<object> constantValue = semanticModel.GetConstantValue(expression, cancellationToken);
+
+                    var power = (int)Math.Log(Convert.ToDouble(constantValue.Value), 2);
+
+                    BinaryExpressionSyntax leftShift = LeftShiftExpression(NumericLiteralExpression(1), NumericLiteralExpression(power));
+
+                    return leftShift.WithTriviaFrom(expression);
+                });
+
+            return await document.ReplaceNodeAsync(enumDeclaration, newEnumDeclaration, cancellationToken).ConfigureAwait(false);
+
+            IEnumerable<ExpressionSyntax> GetExpressionsToRewrite()
+            {
+                foreach (EnumMemberDeclarationSyntax member in enumDeclaration.Members)
+                {
+                    ExpressionSyntax expression = member.EqualsValue?.Value.WalkDownParentheses();
+
+                    if (expression != null
+                        && semanticModel.GetDeclaredSymbol(member, cancellationToken) is IFieldSymbol fieldSymbol
+                        && fieldSymbol.HasConstantValue)
+                    {
+                        EnumFieldSymbolInfo fieldInfo = EnumFieldSymbolInfo.Create(fieldSymbol);
+
+                        if (fieldInfo.Value > 1
+                            && !fieldInfo.HasCompositeValue())
+                        {
+                            yield return expression;
+                        }
+                    }
+                }
+            }
         }
     }
 }

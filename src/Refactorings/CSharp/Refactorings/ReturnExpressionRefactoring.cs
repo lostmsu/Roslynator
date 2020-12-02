@@ -52,11 +52,11 @@ namespace Roslynator.CSharp.Refactorings
                 {
                     ITypeSymbol typeArgument = ((INamedTypeSymbol)memberTypeSymbol).TypeArguments[0];
 
-                    if (!typeArgument.Equals(expressionSymbol))
+                    if (!SymbolEqualityComparer.Default.Equals(typeArgument, expressionSymbol))
                         return typeArgument;
                 }
             }
-            else if (!memberTypeSymbol.Equals(expressionSymbol))
+            else if (!SymbolEqualityComparer.Default.Equals(memberTypeSymbol, expressionSymbol))
             {
                 return memberTypeSymbol;
             }
@@ -67,7 +67,7 @@ namespace Roslynator.CSharp.Refactorings
         internal static (ISymbol symbol, ITypeSymbol typeSymbol) GetContainingSymbolAndType(
             ExpressionSyntax expression,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             switch (semanticModel.GetEnclosingSymbol(expression.SpanStart, cancellationToken))
             {

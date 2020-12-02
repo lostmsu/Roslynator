@@ -21,15 +21,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeEqualsExpression, SyntaxKind.EqualsExpression);
+            context.RegisterSyntaxNodeAction(f => AnalyzeEqualsExpression(f), SyntaxKind.EqualsExpression);
         }
 
-        public static void AnalyzeEqualsExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeEqualsExpression(SyntaxNodeAnalysisContext context)
         {
             var equalsExpression = (BinaryExpressionSyntax)context.Node;
 

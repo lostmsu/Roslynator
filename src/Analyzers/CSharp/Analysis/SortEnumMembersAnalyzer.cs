@@ -21,15 +21,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeEnumDeclaration, SyntaxKind.EnumDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeEnumDeclaration(f), SyntaxKind.EnumDeclaration);
         }
 
-        public static void AnalyzeEnumDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeEnumDeclaration(SyntaxNodeAnalysisContext context)
         {
             var enumDeclaration = (EnumDeclarationSyntax)context.Node;
 
@@ -44,13 +41,13 @@ namespace Roslynator.CSharp.Analysis
         private static bool IsListUnsorted(
             SeparatedSyntaxList<EnumMemberDeclarationSyntax> members,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             int count = members.Count;
 
             if (count > 1)
             {
-                IFieldSymbol firstField = semanticModel.GetDeclaredSymbol(members.First(), cancellationToken);
+                IFieldSymbol firstField = semanticModel.GetDeclaredSymbol(members[0], cancellationToken);
 
                 if (firstField?.HasConstantValue == true)
                 {

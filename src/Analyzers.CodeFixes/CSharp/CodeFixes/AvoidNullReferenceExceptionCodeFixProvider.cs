@@ -85,24 +85,22 @@ namespace Roslynator.CSharp.CodeFixes
         {
             var span = new TextSpan(expression.Span.End, 0);
 
-            var textChange = new TextChange(span, "?");
-
-            Document newDocument = await document.WithTextChangeAsync(textChange, cancellationToken).ConfigureAwait(false);
+            Document newDocument = await document.WithTextChangeAsync(span, "?", cancellationToken).ConfigureAwait(false);
 
             SyntaxNode root = await newDocument.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
             var conditionalAccessExpression = (ConditionalAccessExpressionSyntax)root.FindNode(span, getInnermostNodeForTie: true);
 
-            SemanticModel semanticModel = await newDocument.GetSemanticModelAsync().ConfigureAwait(false);
+            SemanticModel semanticModel = await newDocument.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
             TypeInfo typeInfo = semanticModel.GetTypeInfo(conditionalAccessExpression, cancellationToken);
 
             ITypeSymbol type = typeInfo.Type;
             ITypeSymbol convertedType = typeInfo.ConvertedType;
 
-            if (!type.Equals(convertedType)
+            if (!SymbolEqualityComparer.Default.Equals(type, convertedType)
                 && type.IsNullableType()
-                && ((INamedTypeSymbol)type).TypeArguments[0].Equals(convertedType))
+                && SymbolEqualityComparer.Default.Equals(((INamedTypeSymbol)type).TypeArguments[0], convertedType))
             {
                 ExpressionSyntax defaultValue = convertedType.GetDefaultValueSyntax(document.GetDefaultSyntaxOptions());
 

@@ -18,64 +18,60 @@ namespace Roslynator.CSharp.Refactorings
             return propertyDeclaration.IsParentKind(SyntaxKind.ClassDeclaration, SyntaxKind.StructDeclaration)
                 && propertyDeclaration
                     .AccessorList?
-                    .Accessors.All(f => f.BodyOrExpressionBody() == null) == true;
+                    .Accessors
+                    .All(f => f.BodyOrExpressionBody() == null) == true;
         }
 
         public static Task<Document> RefactorAsync(
             Document document,
             PropertyDeclarationSyntax propertyDeclaration,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
-            PropertyDeclarationSyntax newNode = ExpandProperty(propertyDeclaration);
-
-            newNode = newNode
-                .WithModifiers(newNode.Modifiers.Replace(SyntaxKind.AbstractKeyword, SyntaxKind.VirtualKeyword))
-                .WithTriviaFrom(propertyDeclaration)
-                .WithFormatterAnnotation();
-
-            return document.ReplaceNodeAsync(propertyDeclaration, newNode, cancellationToken);
-        }
-
-        private static PropertyDeclarationSyntax ExpandProperty(PropertyDeclarationSyntax propertyDeclaration)
-        {
-            AccessorListSyntax accessorList = AccessorList(List(CreateAccessors(propertyDeclaration)));
+            AccessorListSyntax accessorList = AccessorList(List(ExpandProperty()));
 
             accessorList = accessorList
                 .RemoveWhitespace()
                 .WithCloseBraceToken(accessorList.CloseBraceToken.WithLeadingTrivia(NewLine()));
 
-            return propertyDeclaration
+            PropertyDeclarationSyntax newPropertyDeclaration = propertyDeclaration
                 .WithInitializer(null)
                 .WithSemicolonToken(default(SyntaxToken))
                 .WithAccessorList(accessorList);
-        }
 
-        private static IEnumerable<AccessorDeclarationSyntax> CreateAccessors(PropertyDeclarationSyntax propertyDeclaration)
-        {
-            foreach (AccessorDeclarationSyntax accessor in propertyDeclaration.AccessorList.Accessors)
+            newPropertyDeclaration = newPropertyDeclaration
+                .WithModifiers(newPropertyDeclaration.Modifiers.Replace(SyntaxKind.AbstractKeyword, SyntaxKind.VirtualKeyword))
+                .WithTriviaFrom(propertyDeclaration)
+                .WithFormatterAnnotation();
+
+            return document.ReplaceNodeAsync(propertyDeclaration, newPropertyDeclaration, cancellationToken);
+
+            IEnumerable<AccessorDeclarationSyntax> ExpandProperty()
             {
-                if (accessor.IsKind(SyntaxKind.GetAccessorDeclaration))
+                foreach (AccessorDeclarationSyntax accessor in propertyDeclaration.AccessorList.Accessors)
                 {
-                    ExpressionSyntax value = propertyDeclaration.Initializer?.Value;
-
-                    if (value != null)
+                    if (accessor.IsKind(SyntaxKind.GetAccessorDeclaration))
                     {
-                        yield return accessor
-                            .WithBody(Block(ReturnStatement(value)))
-                            .WithSemicolonToken(default(SyntaxToken));
+                        ExpressionSyntax value = propertyDeclaration.Initializer?.Value;
 
-                        continue;
+                        if (value != null)
+                        {
+                            yield return accessor
+                                .WithBody(Block(ReturnStatement(value)))
+                                .WithSemicolonToken(default(SyntaxToken));
+
+                            continue;
+                        }
                     }
+
+                    BlockSyntax body = Block(
+                        OpenBraceToken(),
+                        List<StatementSyntax>(),
+                        CloseBraceToken().WithNavigationAnnotation());
+
+                    yield return accessor
+                        .WithBody(body)
+                        .WithSemicolonToken(default(SyntaxToken));
                 }
-
-                BlockSyntax body = Block(
-                    OpenBraceToken(),
-                    List<StatementSyntax>(),
-                    CloseBraceToken().WithNavigationAnnotation());
-
-                yield return accessor
-                    .WithBody(body)
-                    .WithSemicolonToken(default(SyntaxToken));
             }
         }
     }

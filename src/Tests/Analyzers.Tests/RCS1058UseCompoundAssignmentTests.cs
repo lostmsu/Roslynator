@@ -5,17 +5,18 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Roslynator.CSharp.CodeFixes;
+using Roslynator.CSharp.Testing;
 using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1058UseCompoundAssignmentTests : AbstractCSharpCodeFixVerifier
+    public class RCS1058UseCompoundAssignmentTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.UseCompoundAssignment;
 
         public override DiagnosticAnalyzer Analyzer { get; } = new UseCompoundAssignmentAnalyzer();
 
-        public override CodeFixProvider FixProvider { get; } = new AssignmentExpressionCodeFixProvider();
+        public override CodeFixProvider FixProvider { get; } = new UseCompoundAssignmentCodeFixProvider();
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseCompoundAssignment)]
         public async Task Test_Property()
@@ -55,7 +56,7 @@ class C
         [InlineData("i = i | 1", "i |= 1")]
         [InlineData("i = i & 1", "i &= 1")]
         [InlineData("i = i ^ 1", "i ^= 1")]
-        public async Task Test(string fromData, string toData)
+        public async Task Test(string source, string expected)
         {
             await VerifyDiagnosticAndFixAsync(@"
 class C
@@ -65,7 +66,55 @@ class C
         [||];
     }
 }
-", fromData, toData);
+", source, expected);
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseCompoundAssignment)]
+        public async Task Test_CoalesceExpression()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    void M(string s)
+    {
+        [|s = s ?? """"|];
+    }
+}
+", @"
+class C
+{
+    void M(string s)
+    {
+        s ??= """";
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseCompoundAssignment)]
+        public async Task Test_LazyInitialization()
+        {
+            await VerifyDiagnosticAndFixAsync(@"
+class C
+{
+    string M()
+    {
+        string x = null;
+
+        return [|x ?? (x = M())|]; // x
+    }
+}
+", @"
+class C
+{
+    string M()
+    {
+        string x = null;
+
+        return x ??= M(); // x
+    }
+}
+");
         }
 
         [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseCompoundAssignment)]
@@ -82,6 +131,53 @@ class C
     int P { get; set; }
 }
 ");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseCompoundAssignment)]
+        public async Task TestNoDiagnostic_CoalesceExpression_CSharp6()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    void M(string s)
+    {
+        s = s ?? """";
+    }
+}
+", options: CSharpCodeVerificationOptions.Default_CSharp6);
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseCompoundAssignment)]
+        public async Task TestNoDiagnostic_LazyInitialization_ExpressionsAreNotEquivalent()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    string M()
+    {
+        string x = null;
+        string x2 = null;
+
+        return x ?? (x2 = M());
+    }
+}
+", options: CSharpCodeVerificationOptions.Default_CSharp7_3);
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UseCompoundAssignment)]
+        public async Task TestNoDiagnostic_LazyInitialization_CSharp7_3()
+        {
+            await VerifyNoDiagnosticAsync(@"
+class C
+{
+    string M()
+    {
+        string x = null;
+
+        return x ?? (x = M());
+    }
+}
+", options: CSharpCodeVerificationOptions.Default_CSharp7_3);
         }
     }
 }

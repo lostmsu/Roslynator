@@ -30,13 +30,6 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsAnyEnabled(
-                CodeFixIdentifiers.AddArgumentList,
-                CodeFixIdentifiers.ChangeArrayType))
-            {
-                return;
-            }
-
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
 
             if (!TryFindFirstAncestorOrSelf(root, context.Span, out SimpleNameSyntax simpleName))
@@ -49,6 +42,9 @@ namespace Roslynator.CSharp.CodeFixes
                     case CompilerDiagnosticIdentifiers.CannotConvertMethodGroupToNonDelegateType:
                     case CompilerDiagnosticIdentifiers.NameIsNotValidInGivenContext:
                         {
+                            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.AddArgumentList))
+                                break;
+
                             if (!simpleName.IsParentKind(SyntaxKind.SimpleMemberAccessExpression))
                                 break;
 
@@ -71,6 +67,9 @@ namespace Roslynator.CSharp.CodeFixes
                         }
                     case CompilerDiagnosticIdentifiers.TypeOrNamespaceNameCouldNotBeFound:
                         {
+                            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.ChangeArrayType))
+                                break;
+
                             if (!(simpleName.Parent is ArrayTypeSyntax arrayType))
                                 break;
 
@@ -92,11 +91,13 @@ namespace Roslynator.CSharp.CodeFixes
                             if (typeSymbol?.SupportsExplicitDeclaration() != true)
                                 break;
 
-                            TypeSyntax newType = typeSymbol.ToMinimalTypeSyntax(semanticModel, simpleName.SpanStart);
+                            TypeSyntax newType = typeSymbol.ToTypeSyntax()
+                                .WithSimplifierAnnotation()
+                                .WithTriviaFrom(simpleName);
 
                             CodeAction codeAction = CodeAction.Create(
-                                $"Change element type to '{SymbolDisplay.ToMinimalDisplayString(typeSymbol, semanticModel, simpleName.SpanStart, SymbolDisplayFormats.Default)}'",
-                                cancellationToken => context.Document.ReplaceNodeAsync(simpleName, newType.WithTriviaFrom(simpleName), cancellationToken),
+                                $"Change element type to '{SymbolDisplay.ToMinimalDisplayString(typeSymbol, semanticModel, simpleName.SpanStart, SymbolDisplayFormats.DisplayName)}'",
+                                cancellationToken => context.Document.ReplaceNodeAsync(simpleName, newType, cancellationToken),
                                 GetEquivalenceKey(diagnostic));
 
                             context.RegisterCodeFix(codeAction, diagnostic);

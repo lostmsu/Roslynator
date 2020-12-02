@@ -12,12 +12,10 @@ namespace Roslynator.CodeGeneration.CSharp
 {
     public static class CodeFixesOptionsPageGenerator
     {
-        public static CompilationUnitSyntax Generate(IEnumerable<CodeFixDescriptor> codeFixes, IComparer<string> comparer)
+        public static CompilationUnitSyntax Generate(IEnumerable<CodeFixMetadata> codeFixes, IComparer<string> comparer)
         {
             return CompilationUnit(
-                UsingDirectives(
-                    "System.Collections.Generic",
-                    "Roslynator.CSharp"),
+                UsingDirectives("Roslynator.CSharp"),
                 NamespaceDeclaration(
                     "Roslynator.VisualStudio",
                     ClassDeclaration(
@@ -26,42 +24,14 @@ namespace Roslynator.CodeGeneration.CSharp
                         CreateMembers(codeFixes.Where(f => !f.IsObsolete), comparer).ToSyntaxList())));
         }
 
-        private static IEnumerable<MemberDeclarationSyntax> CreateMembers(IEnumerable<CodeFixDescriptor> codeFixes, IComparer<string> comparer)
+        private static IEnumerable<MemberDeclarationSyntax> CreateMembers(IEnumerable<CodeFixMetadata> codeFixes, IComparer<string> comparer)
         {
-            yield return PropertyDeclaration(
-                Modifiers.Protected_Override(),
-                PredefinedStringType(),
-                Identifier("DisabledByDefault"),
-                AccessorList(AutoGetAccessorDeclaration()),
-                ParseExpression(
-                    "$\"" +
-                    string.Join(",", codeFixes
-                        .Where(f => !f.IsEnabledByDefault)
-                        .OrderBy(f => f.Identifier, comparer)
-                        .Select(f => $"{{CodeFixIdentifiers.{f.Identifier}}}")) +
-                    "\""));
-
             yield return PropertyDeclaration(
                 Modifiers.Protected_Override(),
                 PredefinedStringType(),
                 Identifier("MaxId"),
                 AccessorList(AutoGetAccessorDeclaration()),
                 ParseExpression($"CodeFixIdentifiers.{codeFixes.OrderBy(f => f.Id, comparer).Last().Identifier}"));
-
-            yield return MethodDeclaration(
-                Modifiers.Protected_Override(),
-                VoidType(),
-                Identifier("Fill"),
-                ParameterList(Parameter(ParseTypeName("ICollection<BaseModel>"), Identifier("codeFixes"))),
-                Block(
-                    SingletonList(ExpressionStatement(ParseExpression("codeFixes.Clear()")))
-                        .AddRange(codeFixes
-                            .OrderBy(f => f.Id, comparer)
-                            .Select(codeFix =>
-                            {
-                                return ExpressionStatement(
-                                    ParseExpression($"codeFixes.Add(new BaseModel(CodeFixIdentifiers.{codeFix.Identifier}, \"{StringUtility.EscapeQuote(codeFix.Title)} (fixes {string.Join(", ", codeFix.FixableDiagnosticIds)})\", IsEnabled(CodeFixIdentifiers.{codeFix.Identifier})))"));
-                            }))));
         }
     }
 }

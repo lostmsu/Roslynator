@@ -32,12 +32,14 @@ namespace Roslynator.CSharp.Refactorings
 
             TypeSyntax type = classSymbol.ToTypeSyntax();
 
-            SyntaxNode newNode = parent.ReplaceNodes(names, (node, _) =>
-            {
-                return SimpleMemberAccessExpression(type, node.WithoutTrivia())
-                    .WithTriviaFrom(node)
-                    .WithSimplifierAnnotation();
-            });
+            SyntaxNode newNode = parent.ReplaceNodes(
+                names,
+                (node, _) =>
+                {
+                    return SimpleMemberAccessExpression(type, node.WithoutTrivia())
+                        .WithTriviaFrom(node)
+                        .WithSimplifierAnnotation();
+                });
 
             newNode = RemoveUsingDirective(newNode, index);
 
@@ -60,7 +62,7 @@ namespace Roslynator.CSharp.Refactorings
                     ISymbol symbol = semanticModel.GetSymbol(name, cancellationToken);
 
                     if (symbol.IsKind(SymbolKind.Event, SymbolKind.Field, SymbolKind.Method, SymbolKind.Property)
-                        && symbol.ContainingType?.Equals(classSymbol) == true)
+                        && SymbolEqualityComparer.Default.Equals(symbol.ContainingType, classSymbol))
                     {
                         names.Add(name);
                     }
@@ -72,19 +74,15 @@ namespace Roslynator.CSharp.Refactorings
 
         private static SyntaxNode RemoveUsingDirective(SyntaxNode node, int index)
         {
-            switch (node.Kind())
+            switch (node)
             {
-                case SyntaxKind.CompilationUnit:
+                case CompilationUnitSyntax compilationUnit:
                     {
-                        var compilationUnit = (CompilationUnitSyntax)node;
-
                         UsingDirectiveSyntax usingDirective = compilationUnit.Usings[index];
                         return compilationUnit.RemoveNode(usingDirective);
                     }
-                case SyntaxKind.NamespaceDeclaration:
+                case NamespaceDeclarationSyntax namespaceDeclaration:
                     {
-                        var namespaceDeclaration = (NamespaceDeclarationSyntax)node;
-
                         UsingDirectiveSyntax usingDirective = namespaceDeclaration.Usings[index];
                         return namespaceDeclaration.RemoveNode(usingDirective);
                     }

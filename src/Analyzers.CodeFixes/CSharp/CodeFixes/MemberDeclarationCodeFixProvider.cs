@@ -26,16 +26,15 @@ namespace Roslynator.CSharp.CodeFixes
             get
             {
                 return ImmutableArray.Create(
-                    DiagnosticIdentifiers.FormatDeclarationBraces,
                     DiagnosticIdentifiers.RemoveRedundantOverridingMember,
-                    DiagnosticIdentifiers.AddDefaultAccessModifier,
+                    DiagnosticIdentifiers.AddAccessibilityModifiersOrViceVersa,
                     DiagnosticIdentifiers.RemoveRedundantSealedModifier,
                     DiagnosticIdentifiers.AvoidSemicolonAtEndOfDeclaration,
                     DiagnosticIdentifiers.OrderModifiers,
-                    DiagnosticIdentifiers.MarkFieldAsReadOnly,
+                    DiagnosticIdentifiers.MakeFieldReadOnly,
                     DiagnosticIdentifiers.UseConstantInsteadOfField,
                     DiagnosticIdentifiers.UseReadOnlyAutoProperty,
-                    DiagnosticIdentifiers.ReplaceCommentWithDocumentationComment,
+                    DiagnosticIdentifiers.ConvertCommentToDocumentationComment,
                     DiagnosticIdentifiers.MakeMethodExtensionMethod);
             }
         }
@@ -51,16 +50,6 @@ namespace Roslynator.CSharp.CodeFixes
             {
                 switch (diagnostic.Id)
                 {
-                    case DiagnosticIdentifiers.FormatDeclarationBraces:
-                        {
-                            CodeAction codeAction = CodeAction.Create(
-                                "Format braces",
-                                cancellationToken => FormatDeclarationBracesRefactoring.RefactorAsync(context.Document, memberDeclaration, cancellationToken),
-                                GetEquivalenceKey(diagnostic));
-
-                            context.RegisterCodeFix(codeAction, diagnostic);
-                            break;
-                        }
                     case DiagnosticIdentifiers.RemoveRedundantOverridingMember:
                         {
                             CodeAction codeAction = CodeActionFactory.RemoveMemberDeclaration(context.Document, memberDeclaration, equivalenceKey: GetEquivalenceKey(diagnostic));
@@ -68,18 +57,39 @@ namespace Roslynator.CSharp.CodeFixes
                             context.RegisterCodeFix(codeAction, diagnostic);
                             break;
                         }
-                    case DiagnosticIdentifiers.AddDefaultAccessModifier:
+                    case DiagnosticIdentifiers.AddAccessibilityModifiersOrViceVersa:
                         {
-                            var accessibility = (Accessibility)Enum.Parse(
-                                typeof(Accessibility),
-                                diagnostic.Properties[nameof(Accessibility)]);
+                            if (diagnostic.Properties.TryGetValue(nameof(Accessibility), out string accessibilityText))
+                            {
+                                var accessibility = (Accessibility)Enum.Parse(typeof(Accessibility), accessibilityText);
 
-                            CodeAction codeAction = CodeAction.Create(
-                                "Add default access modifier",
-                                cancellationToken => AddDefaultAccessModifierRefactoring.RefactorAsync(context.Document, memberDeclaration, accessibility, cancellationToken),
-                                GetEquivalenceKey(diagnostic));
+                                CodeAction codeAction = CodeAction.Create(
+                                    "Add accessibility modifiers",
+                                    ct =>
+                                    {
+                                        MemberDeclarationSyntax newNode = SyntaxAccessibility.WithExplicitAccessibility(memberDeclaration, accessibility);
 
-                            context.RegisterCodeFix(codeAction, diagnostic);
+                                        return context.Document.ReplaceNodeAsync(memberDeclaration, newNode, ct);
+                                    },
+                                    GetEquivalenceKey(diagnostic));
+
+                                context.RegisterCodeFix(codeAction, diagnostic);
+                            }
+                            else
+                            {
+                                CodeAction codeAction = CodeAction.Create(
+                                    "Remove accessibility modifiers",
+                                    ct =>
+                                    {
+                                        MemberDeclarationSyntax newNode = SyntaxAccessibility.WithoutExplicitAccessibility(memberDeclaration);
+
+                                        return context.Document.ReplaceNodeAsync(memberDeclaration, newNode, ct);
+                                    },
+                                    GetEquivalenceKey(diagnostic));
+
+                                context.RegisterCodeFix(codeAction, diagnostic);
+                            }
+
                             break;
                         }
                     case DiagnosticIdentifiers.RemoveRedundantSealedModifier:
@@ -107,15 +117,15 @@ namespace Roslynator.CSharp.CodeFixes
                             context.RegisterCodeFix(codeAction, diagnostic);
                             break;
                         }
-                    case DiagnosticIdentifiers.MarkFieldAsReadOnly:
+                    case DiagnosticIdentifiers.MakeFieldReadOnly:
                         {
                             var fieldDeclaration = (FieldDeclarationSyntax)memberDeclaration;
 
                             SeparatedSyntaxList<VariableDeclaratorSyntax> declarators = fieldDeclaration.Declaration.Variables;
 
                             string title = (declarators.Count == 1)
-                                ? $"Mark '{declarators[0].Identifier.ValueText}' as read-only"
-                                : "Mark fields as read-only";
+                                ? $"Make '{declarators[0].Identifier.ValueText}' read-only"
+                                : "Make fields read-only";
 
                             ModifiersCodeFixRegistrator.AddModifier(context, diagnostic, fieldDeclaration, SyntaxKind.ReadOnlyKeyword, title: title);
                             break;
@@ -140,11 +150,11 @@ namespace Roslynator.CSharp.CodeFixes
                             context.RegisterCodeFix(codeAction, diagnostic);
                             break;
                         }
-                    case DiagnosticIdentifiers.ReplaceCommentWithDocumentationComment:
+                    case DiagnosticIdentifiers.ConvertCommentToDocumentationComment:
                         {
                             CodeAction codeAction = CodeAction.Create(
-                                ReplaceCommentWithDocumentationCommentRefactoring.Title,
-                                cancellationToken => ReplaceCommentWithDocumentationCommentRefactoring.RefactorAsync(context.Document, memberDeclaration, context.Span, cancellationToken),
+                                ConvertCommentToDocumentationCommentRefactoring.Title,
+                                cancellationToken => ConvertCommentToDocumentationCommentRefactoring.RefactorAsync(context.Document, memberDeclaration, context.Span, cancellationToken),
                                 GetEquivalenceKey(diagnostic));
 
                             context.RegisterCodeFix(codeAction, diagnostic);
@@ -176,7 +186,7 @@ namespace Roslynator.CSharp.CodeFixes
         private static Task<Document> OrderModifiersAsync(
             Document document,
             MemberDeclarationSyntax declaration,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ModifierListInfo info = SyntaxInfo.ModifierListInfo(declaration);
 

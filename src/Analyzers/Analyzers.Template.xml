@@ -9,6 +9,7 @@
     <IsEnabledByDefault>true</IsEnabledByDefault>
     <SupportsFadeOut>false</SupportsFadeOut>
     <SupportsFadeOutAnalyzer>false</SupportsFadeOutAnalyzer>
+    <MinLanguageVersion></MinLanguageVersion>
     <Summary></Summary>
     <Samples>
       <Sample>
@@ -16,6 +17,21 @@
         <After><![CDATA[]]></After>
       </Sample>
     </Samples>
+    <Options>
+      <Option Identifier="">
+        <Title></Title>
+        <Id></Id>
+        <Kind></Kind>
+        <IsEnabledByDefault>false</IsEnabledByDefault>
+        <SupportsFadeOut>false</SupportsFadeOut>
+        <Samples>
+          <Sample>
+            <Before><![CDATA[]]></Before>
+            <After><![CDATA[]]></After>
+          </Sample>
+        </Samples>
+      </Option>
+    </Options>
     <Remarks></Remarks>
     <Links>
       <Link>

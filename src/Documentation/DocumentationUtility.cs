@@ -1,70 +1,95 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System.Diagnostics;
+using System.Text;
 using Microsoft.CodeAnalysis;
+using Roslynator.Text;
 
 namespace Roslynator.Documentation
 {
     internal static class DocumentationUtility
     {
-        public static bool IsVisibleAttribute(INamedTypeSymbol attributeType)
+        public static string CreateLocalLink(ISymbol symbol, string prefix = null)
         {
-            return !IsNotVisibleAttribute(attributeType);
-        }
+            StringBuilder sb = StringBuilderCache.GetInstance();
 
-        private static bool IsNotVisibleAttribute(INamedTypeSymbol attributeType)
-        {
-            switch (attributeType.MetadataName)
+            if (prefix != null)
+                sb.Append(prefix);
+
+            int count = 0;
+
+            INamespaceSymbol n = symbol.ContainingNamespace;
+
+            while (n?.IsGlobalNamespace == false)
             {
-                case "ConditionalAttribute":
-                case "DebuggableAttribute":
-                case "DebuggerBrowsableAttribute":
-                case "DebuggerDisplayAttribute":
-                case "DebuggerHiddenAttribute":
-                case "DebuggerNonUserCodeAttribute":
-                case "DebuggerStepperBoundaryAttribute":
-                case "DebuggerStepThroughAttribute":
-                case "DebuggerTypeProxyAttribute":
-                case "DebuggerVisualizerAttribute":
-                    return attributeType.ContainingNamespace.HasMetadataName(MetadataNames.System_Diagnostics);
-                case "SuppressMessageAttribute":
-                    return attributeType.ContainingNamespace.HasMetadataName(MetadataNames.System_Diagnostics_CodeAnalysis);
-                case "DefaultMemberAttribute":
-                case "AssemblyConfigurationAttribute":
-                    return attributeType.ContainingNamespace.HasMetadataName(MetadataNames.System_Reflection);
-                case "AsyncStateMachineAttribute":
-                case "CompilationRelaxationsAttribute":
-                case "CompilerGeneratedAttribute":
-                case "IsReadOnlyAttribute":
-                case "InternalsVisibleToAttribute":
-                case "IteratorStateMachineAttribute":
-                case "MethodImplAttribute":
-                case "RuntimeCompatibilityAttribute":
-                case "StateMachineAttribute":
-                case "TupleElementNamesAttribute":
-                case "TypeForwardedFromAttribute":
-                case "TypeForwardedToAttribute":
-                    return attributeType.ContainingNamespace.HasMetadataName(MetadataNames.System_Runtime_CompilerServices);
-#if DEBUG
-                case "AssemblyCompanyAttribute":
-                case "AssemblyCopyrightAttribute":
-                case "AssemblyDescriptionAttribute":
-                case "AssemblyFileVersionAttribute":
-                case "AssemblyInformationalVersionAttribute":
-                case "AssemblyProductAttribute":
-                case "AssemblyTitleAttribute":
-                case "AttributeUsageAttribute":
-                case "CLSCompliantAttribute":
-                case "FlagsAttribute":
-                case "FooAttribute":
-                case "ObsoleteAttribute":
-                case "TargetFrameworkAttribute":
-                    return false;
-#endif
+                n = n.ContainingNamespace;
+                count++;
             }
 
-            Debug.Fail(attributeType.ToDisplayString());
-            return false;
+            while (count > 0)
+            {
+                int c = count;
+
+                n = symbol.ContainingNamespace;
+
+                while (c > 1)
+                {
+                    n = n.ContainingNamespace;
+                    c--;
+                }
+
+                sb.Append(n.Name);
+                sb.Append("_");
+                count--;
+            }
+
+            count = 0;
+
+            INamedTypeSymbol t = symbol.ContainingType;
+
+            while (t != null)
+            {
+                t = t.ContainingType;
+                count++;
+            }
+
+            while (count > 0)
+            {
+                t = symbol.ContainingType;
+
+                while (count > 1)
+                {
+                    t = t.ContainingType;
+                    count--;
+                }
+
+                AppendType(t);
+                sb.Append("_");
+                count--;
+            }
+
+            if (symbol.IsKind(SymbolKind.NamedType))
+            {
+                AppendType((INamedTypeSymbol)symbol);
+            }
+            else
+            {
+                sb.Append(symbol.Name);
+            }
+
+            return StringBuilderCache.GetStringAndFree(sb);
+
+            void AppendType(INamedTypeSymbol typeSymbol)
+            {
+                sb.Append(typeSymbol.Name);
+
+                int arity = typeSymbol.Arity;
+
+                if (arity > 0)
+                {
+                    sb.Append("_");
+                    sb.Append(arity.ToString());
+                }
+            }
         }
     }
 }

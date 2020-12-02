@@ -29,19 +29,28 @@ namespace Roslynator.CSharp.CodeFixes
     {
         public sealed override ImmutableArray<string> FixableDiagnosticIds
         {
-            get { return ImmutableArray.Create(DiagnosticIdentifiers.OptimizeLinqMethodCall); }
+            get
+            {
+                return ImmutableArray.Create(
+                    DiagnosticIdentifiers.OptimizeLinqMethodCall,
+                    DiagnosticIdentifiers.UseElementAccess);
+            }
         }
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
 
-            if (!TryFindFirstAncestorOrSelf(root, context.Span, out SyntaxNode node, predicate: f => f.IsKind(
-                SyntaxKind.InvocationExpression,
-                SyntaxKind.EqualsExpression,
-                SyntaxKind.NotEqualsExpression,
-                SyntaxKind.IsPatternExpression,
-                SyntaxKind.ConditionalExpression)))
+            if (!TryFindFirstAncestorOrSelf(
+                root,
+                context.Span,
+                out SyntaxNode node,
+                predicate: f => f.IsKind(
+                    SyntaxKind.InvocationExpression,
+                    SyntaxKind.EqualsExpression,
+                    SyntaxKind.NotEqualsExpression,
+                    SyntaxKind.IsPatternExpression,
+                    SyntaxKind.ConditionalExpression)))
             {
                 return;
             }
@@ -94,6 +103,17 @@ namespace Roslynator.CSharp.CodeFixes
                             context.RegisterCodeFix(codeAction, diagnostic);
                             return;
                         }
+                    case "ToList":
+                    case "ToImmutableArray":
+                        {
+                            CodeAction codeAction = CodeAction.Create(
+                                "Call 'ConvertAll'",
+                                ct => CallConvertAllInsteadOfSelectAsync(document, invocationInfo, ct),
+                                GetEquivalenceKey(diagnostic, "CallConvertAllInsteadOfSelect"));
+
+                            context.RegisterCodeFix(codeAction, diagnostic);
+                            return;
+                        }
                     case "OfType":
                         {
                             TypeSyntax typeArgument = ((GenericNameSyntax)invocationInfo.Name).TypeArgumentList.Arguments.Single();
@@ -123,6 +143,16 @@ namespace Roslynator.CSharp.CodeFixes
                                 context.RegisterCodeFix(codeAction, diagnostic);
                             }
 
+                            return;
+                        }
+                    case "Reverse":
+                        {
+                            CodeAction codeAction = CodeAction.Create(
+                                "Call 'OrderByDescending",
+                                ct => CallOrderByDescendingInsteadOfOrderByAndReverseAsync(document, invocationInfo, ct),
+                                GetEquivalenceKey(diagnostic, "CallOrderByDescendingInsteadOfOrderByAndReverse"));
+
+                            context.RegisterCodeFix(codeAction, diagnostic);
                             return;
                         }
                     case "Select":
@@ -175,12 +205,25 @@ namespace Roslynator.CSharp.CodeFixes
                         {
                             if (diagnostic.Properties.TryGetValue("PropertyName", out string propertyName))
                             {
-                                CodeAction codeAction = CodeAction.Create(
-                                    $"Use '{propertyName}' property instead of calling 'Count'",
-                                    ct => UseCountOrLengthPropertyInsteadOfCountMethodAsync(document, invocation, diagnostic.Properties["PropertyName"], ct),
-                                    GetEquivalenceKey(diagnostic, "UseCountOrLengthPropertyInsteadOfCountMethod"));
+                                if (diagnostic.Properties.TryGetValue("MethodName", out string methodName)
+                                    && methodName == "Sum")
+                                {
+                                    CodeAction codeAction = CodeAction.Create(
+                                        "Call 'Sum'",
+                                        ct => CallSumInsteadOfSelectManyAndCountAsync(document, invocationInfo, propertyName, ct),
+                                        GetEquivalenceKey(diagnostic, "CallSumInsteadOfSelectManyAndCount"));
 
-                                context.RegisterCodeFix(codeAction, diagnostic);
+                                    context.RegisterCodeFix(codeAction, diagnostic);
+                                }
+                                else
+                                {
+                                    CodeAction codeAction = CodeAction.Create(
+                                        $"Use '{propertyName}' property instead of calling 'Count'",
+                                        ct => UseCountOrLengthPropertyInsteadOfCountMethodAsync(document, invocation, diagnostic.Properties["PropertyName"], ct),
+                                        GetEquivalenceKey(diagnostic, "UseCountOrLengthPropertyInsteadOfCountMethod"));
+
+                                    context.RegisterCodeFix(codeAction, diagnostic);
+                                }
                             }
                             else if (invocation.Parent is BinaryExpressionSyntax binaryExpression)
                             {
@@ -252,8 +295,8 @@ namespace Roslynator.CSharp.CodeFixes
         {
             SimpleMemberInvocationExpressionInfo invocationInfo2 = SimpleMemberInvocationExpressionInfo(invocationInfo.Expression);
 
-            SingleParameterLambdaExpressionInfo lambda = SingleParameterLambdaExpressionInfo((LambdaExpressionSyntax)invocationInfo.Arguments.First().Expression);
-            SingleParameterLambdaExpressionInfo lambda2 = SingleParameterLambdaExpressionInfo((LambdaExpressionSyntax)invocationInfo2.Arguments.First().Expression);
+            SingleParameterLambdaExpressionInfo lambda = SingleParameterLambdaExpressionInfo((LambdaExpressionSyntax)invocationInfo.Arguments[0].Expression);
+            SingleParameterLambdaExpressionInfo lambda2 = SingleParameterLambdaExpressionInfo((LambdaExpressionSyntax)invocationInfo2.Arguments[0].Expression);
 
             BinaryExpressionSyntax logicalAnd = LogicalAndExpression(
                 ((ExpressionSyntax)lambda2.Body).Parenthesize(),
@@ -269,7 +312,7 @@ namespace Roslynator.CSharp.CodeFixes
         private static Task<Document> SimplifyLinqMethodChainAsync(
             Document document,
             in SimpleMemberInvocationExpressionInfo invocationInfo,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SimpleMemberInvocationExpressionInfo invocationInfo2 = SimpleMemberInvocationExpressionInfo(invocationInfo.Expression);
 
@@ -327,9 +370,8 @@ namespace Roslynator.CSharp.CodeFixes
                             Parameter(Identifier(DefaultNames.LambdaParameter)),
                             NotEqualsExpression(
                                 IdentifierName(DefaultNames.LambdaParameter),
-                                NullLiteralExpression()
-                            )
-                        ).WithFormatterAnnotation()
+                                NullLiteralExpression()))
+                            .WithFormatterAnnotation()
                     )
                 );
 
@@ -383,8 +425,8 @@ namespace Roslynator.CSharp.CodeFixes
                     newMemberAccess,
                     ArgumentList(
                         Argument(invocationInfo.Expression.WithoutTrivia()),
-                        argumentList.Arguments.First()
-                    ).WithTriviaFrom(argumentList));
+                        argumentList.Arguments[0])
+                        .WithTriviaFrom(argumentList));
 
                 return document.ReplaceNodeAsync(invocationInfo.InvocationExpression, newInvocation, cancellationToken);
             }
@@ -400,7 +442,7 @@ namespace Roslynator.CSharp.CodeFixes
             Document document,
             InvocationExpressionSyntax invocation,
             string propertyName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var memberAccess = (MemberAccessExpressionSyntax)invocation.Expression;
 
@@ -421,7 +463,7 @@ namespace Roslynator.CSharp.CodeFixes
             Document document,
             InvocationExpressionSyntax invocationExpression,
             BinaryExpressionSyntax binaryExpression,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ExpressionSyntax left = binaryExpression.Left;
 
@@ -511,6 +553,70 @@ namespace Roslynator.CSharp.CodeFixes
                 .WithTriviaFrom(conditionalExpression);
 
             return document.ReplaceNodeAsync(conditionalExpression, newInvocationExpression, cancellationToken);
+        }
+
+        private static Task<Document> CallOrderByDescendingInsteadOfOrderByAndReverseAsync(
+            Document document,
+            in SimpleMemberInvocationExpressionInfo invocationInfo,
+            CancellationToken cancellationToken)
+        {
+            InvocationExpressionSyntax invocationExpression2 = SimpleMemberInvocationExpressionInfo(invocationInfo.Expression).InvocationExpression;
+
+            InvocationExpressionSyntax newInvocationExpression = ChangeInvokedMethodName(invocationExpression2, "OrderByDescending");
+
+            return document.ReplaceNodeAsync(invocationInfo.InvocationExpression, newInvocationExpression, cancellationToken);
+        }
+
+        private static Task<Document> CallConvertAllInsteadOfSelectAsync(
+            Document document,
+            in SimpleMemberInvocationExpressionInfo invocationInfo,
+            CancellationToken cancellationToken)
+        {
+            InvocationExpressionSyntax invocationExpression2 = SimpleMemberInvocationExpressionInfo(invocationInfo.Expression).InvocationExpression;
+
+            InvocationExpressionSyntax newInvocationExpression = ChangeInvokedMethodName(invocationExpression2, "ConvertAll");
+
+            return document.ReplaceNodeAsync(invocationInfo.InvocationExpression, newInvocationExpression, cancellationToken);
+        }
+
+        private static Task<Document> CallSumInsteadOfSelectManyAndCountAsync(
+            Document document,
+            in SimpleMemberInvocationExpressionInfo invocationInfo,
+            string propertyName,
+            CancellationToken cancellationToken)
+        {
+            SimpleMemberInvocationExpressionInfo invocationInfo2 = SimpleMemberInvocationExpressionInfo(invocationInfo.Expression);
+
+            ArgumentSyntax argument = invocationInfo2.Arguments.Single();
+
+            var lambdaExpression = (LambdaExpressionSyntax)argument.Expression;
+
+            ExpressionSyntax expression;
+            if (lambdaExpression.Body is BlockSyntax block)
+            {
+                var returnStatement = (ReturnStatementSyntax)block.Statements.Single();
+
+                expression = returnStatement.Expression;
+            }
+            else
+            {
+                expression = (ExpressionSyntax)lambdaExpression.Body;
+            }
+
+            MemberAccessExpressionSyntax memberAccessExpression = SimpleMemberAccessExpression(
+                expression.WithoutTrivia(),
+                IdentifierName(propertyName))
+                .WithTriviaFrom(expression);
+
+            LambdaExpressionSyntax newLambdaExpression = lambdaExpression.ReplaceNode(expression, memberAccessExpression);
+
+            ArgumentSyntax newArgument = argument.WithExpression(newLambdaExpression);
+
+            InvocationExpressionSyntax newInvocationExpression = invocationInfo2.InvocationExpression.ReplaceNode(argument, newArgument);
+
+            newInvocationExpression = ChangeInvokedMethodName(newInvocationExpression, "Sum");
+
+            return document.ReplaceNodeAsync(invocationInfo.InvocationExpression, newInvocationExpression, cancellationToken);
         }
     }
 }

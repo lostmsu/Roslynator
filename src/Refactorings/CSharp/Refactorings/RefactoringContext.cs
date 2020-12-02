@@ -217,7 +217,7 @@ namespace Roslynator.CSharp.Refactorings
                                     {
                                         RegisterRefactoring(
                                             "Add tag 'c'",
-                                            ct => Document.WithTextChangeAsync(new TextChange(Span, $"<c>{token.ToString(Span)}</c>"), ct),
+                                            ct => Document.WithTextChangeAsync(Span, $"<c>{token.ToString(Span)}</c>", ct),
                                             RefactoringIdentifiers.AddTagToDocumentationComment);
                                     }
                                 }
@@ -331,16 +331,16 @@ namespace Roslynator.CSharp.Refactorings
                         RefactoringIdentifiers.UncommentSingleLineComment);
                 }
 
-                if (IsRefactoringEnabled(RefactoringIdentifiers.ReplaceCommentWithDocumentationComment))
+                if (IsRefactoringEnabled(RefactoringIdentifiers.ConvertCommentToDocumentationComment))
                 {
-                    TextSpan fixableSpan = ReplaceCommentWithDocumentationCommentAnalysis.GetFixableSpan(trivia);
+                    TextSpan fixableSpan = ConvertCommentToDocumentationCommentAnalysis.GetFixableSpan(trivia);
 
                     if (!fixableSpan.IsEmpty)
                     {
                         RegisterRefactoring(
-                            ReplaceCommentWithDocumentationCommentRefactoring.Title,
-                            cancellationToken => ReplaceCommentWithDocumentationCommentRefactoring.RefactorAsync(Document, (MemberDeclarationSyntax)trivia.Token.Parent, fixableSpan, cancellationToken),
-                            RefactoringIdentifiers.ReplaceCommentWithDocumentationComment);
+                            ConvertCommentToDocumentationCommentRefactoring.Title,
+                            cancellationToken => ConvertCommentToDocumentationCommentRefactoring.RefactorAsync(Document, (MemberDeclarationSyntax)trivia.Token.Parent, fixableSpan, cancellationToken),
+                            RefactoringIdentifiers.ConvertCommentToDocumentationComment);
                     }
                 }
             }
@@ -362,6 +362,7 @@ namespace Roslynator.CSharp.Refactorings
                 return;
 
             RefactoringFlags flags = RefactoringFlagsCache.GetInstance();
+            flags.Reset();
 
             SyntaxNode firstNode = node;
 
@@ -477,7 +478,7 @@ namespace Roslynator.CSharp.Refactorings
                             if (flags.IsSet(Flag.VariableDeclarator))
                                 continue;
 
-                            await VariableDeclaratorRefactoring.ComputeRefactoringsAsync(this, (VariableDeclaratorSyntax)node).ConfigureAwait(false);
+                            VariableDeclaratorRefactoring.ComputeRefactorings(this, (VariableDeclaratorSyntax)node);
                             flags.Set(Flag.VariableDeclarator);
                             continue;
                         }
@@ -759,7 +760,6 @@ namespace Roslynator.CSharp.Refactorings
                             if (flags.IsSet(Flag.AwaitExpression))
                                 continue;
 
-                            await AwaitExpressionRefactoring.ComputeRefactoringsAsync(this, (AwaitExpressionSyntax)node).ConfigureAwait(false);
                             flags.Set(Flag.AwaitExpression);
                             continue;
                         }
@@ -768,7 +768,7 @@ namespace Roslynator.CSharp.Refactorings
                             if (flags.IsSet(Flag.CastExpression))
                                 continue;
 
-                            CastExpressionRefactoring.ComputeRefactorings(this, (CastExpressionSyntax)node);
+                            await CastExpressionRefactoring.ComputeRefactoringsAsync(this, (CastExpressionSyntax)node).ConfigureAwait(false);
                             flags.Set(Flag.CastExpression);
                             continue;
                         }
@@ -797,6 +797,15 @@ namespace Roslynator.CSharp.Refactorings
 
                             InvertIsExpressionRefactoring.ComputeRefactoring(this, (IsPatternExpressionSyntax)node);
                             flags.Set(Flag.IsPatternExpression);
+                            continue;
+                        }
+                    case SyntaxKind.SwitchExpression:
+                        {
+                            if (flags.IsSet(Flag.SwitchExpression))
+                                continue;
+
+                            SwitchExpressionRefactoring.ComputeRefactorings(this, (SwitchExpressionSyntax)node);
+                            flags.Set(Flag.SwitchExpression);
                             continue;
                         }
                     case SyntaxKind.DoStatement:
@@ -1018,14 +1027,10 @@ namespace Roslynator.CSharp.Refactorings
                 if (instance != null)
                 {
                     _cachedInstance = null;
-                    instance.Reset();
-                }
-                else
-                {
-                    instance = new RefactoringFlags();
+                    return instance;
                 }
 
-                return instance;
+                return new RefactoringFlags();
             }
 
             public static void Free(RefactoringFlags instance)
@@ -1079,26 +1084,27 @@ namespace Roslynator.CSharp.Refactorings
             ThrowExpression = 39,
             DeclarationExpression = 40,
             IsPatternExpression = 41,
+            SwitchExpression = 42,
 
-            MemberDeclaration = 42,
+            MemberDeclaration = 43,
 
-            Statement = 43,
-            ExpressionStatement = 44,
-            LoopStatement = 45,
-            IfStatement = 46,
-            LocalDeclarationStatement = 47,
-            ReturnStatement = 48,
-            SwitchStatement = 49,
-            UsingStatement = 50,
-            YieldStatement = 51,
-            LockStatement = 52,
-            Block = 53,
-            BlockOrSwitchStatement = 54,
-            ThrowStatement = 55,
-            LocalFunctionStatement = 56,
-            UnsafeStatement = 57,
+            Statement = 44,
+            ExpressionStatement = 45,
+            LoopStatement = 46,
+            IfStatement = 47,
+            LocalDeclarationStatement = 48,
+            ReturnStatement = 49,
+            SwitchStatement = 50,
+            UsingStatement = 51,
+            YieldStatement = 52,
+            LockStatement = 53,
+            Block = 54,
+            BlockOrSwitchStatement = 55,
+            ThrowStatement = 56,
+            LocalFunctionStatement = 57,
+            UnsafeStatement = 58,
 
-            Count = 58,
+            Count = 59,
         }
     }
 }

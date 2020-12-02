@@ -87,7 +87,8 @@ namespace Roslynator.CSharp.Refactorings
                 VoidType(),
                 Identifier(methodName).WithRenameAnnotation(),
                 parameterList.WithParameters(parameters),
-                CreateMethodBody(parenthesizedLambda.Body)).WithFormatterAnnotation();
+                CreateMethodBody(parenthesizedLambda.Body))
+                .WithFormatterAnnotation();
 
             SyntaxList<MemberDeclarationSyntax> newMembers = typeDeclaration.Members.Replace(memberDeclaration, newMemberDeclaration);
 
@@ -95,7 +96,7 @@ namespace Roslynator.CSharp.Refactorings
 
             return document.ReplaceNodeAsync(typeDeclaration, typeDeclaration.WithMembers(newMembers), cancellationToken);
 
-            BlockSyntax CreateMethodBody(CSharpSyntaxNode lambdaBody)
+            static BlockSyntax CreateMethodBody(CSharpSyntaxNode lambdaBody)
             {
                 switch (lambdaBody)
                 {

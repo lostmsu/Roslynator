@@ -21,15 +21,12 @@ namespace Roslynator.CSharp.Analysis.MarkLocalVariableAsConst
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeLocalDeclarationStatement, SyntaxKind.LocalDeclarationStatement);
+            context.RegisterSyntaxNodeAction(f => AnalyzeLocalDeclarationStatement(f), SyntaxKind.LocalDeclarationStatement);
         }
 
-        public static void AnalyzeLocalDeclarationStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeLocalDeclarationStatement(SyntaxNodeAnalysisContext context)
         {
             if (context.Node.ContainsDiagnostics)
                 return;
@@ -84,31 +81,34 @@ namespace Roslynator.CSharp.Analysis.MarkLocalVariableAsConst
             SyntaxList<StatementSyntax> statements,
             int startIndex)
         {
-            MarkLocalVariableAsConstWalker walker = MarkLocalVariableAsConstWalkerCache.GetInstance();
+            MarkLocalVariableAsConstWalker walker = MarkLocalVariableAsConstWalker.GetInstance();
 
             foreach (VariableDeclaratorSyntax variable in variables)
                 walker.Identifiers.Add(variable.Identifier.ValueText);
+
+            var result = true;
 
             for (int i = startIndex; i < statements.Count; i++)
             {
                 walker.Visit(statements[i]);
 
-                if (walker.IsMatch)
+                if (walker.Result)
                 {
-                    MarkLocalVariableAsConstWalkerCache.Free(walker);
-                    return false;
+                    result = false;
+                    break;
                 }
             }
 
-            MarkLocalVariableAsConstWalkerCache.Free(walker);
-            return true;
+            MarkLocalVariableAsConstWalker.Free(walker);
+
+            return result;
         }
 
         private static bool HasConstantValue(
             ExpressionSyntax expression,
             ITypeSymbol typeSymbol,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (expression?.IsMissing != false)
                 return false;

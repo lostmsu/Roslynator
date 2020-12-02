@@ -19,7 +19,7 @@ namespace Roslynator.CSharp.Refactorings
             ConditionalExpressionSyntax conditionalExpression,
             CancellationToken cancellationToken)
         {
-            SemanticModel semanticModel = await document.GetSemanticModelAsync().ConfigureAwait(false);
+            SemanticModel semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
             ConditionalExpressionInfo conditionalExpressionInfo = SyntaxInfo.ConditionalExpressionInfo(conditionalExpression);
 
@@ -35,7 +35,7 @@ namespace Roslynator.CSharp.Refactorings
                 ? UseConditionalAccessAnalyzer.FindExpressionThatCanBeConditionallyAccessed(nullCheck.Expression, castExpression.Expression, semanticModel, cancellationToken)
                 : UseConditionalAccessAnalyzer.FindExpressionThatCanBeConditionallyAccessed(nullCheck.Expression, whenNotNull, semanticModel, cancellationToken);
 
-            bool coalesce = false;
+            var coalesce = false;
 
             ExpressionSyntax newNode = null;
 
@@ -69,8 +69,8 @@ namespace Roslynator.CSharp.Refactorings
                             if (castExpression != null)
                             {
                                 newNode = castExpression
-                                   .WithExpression(newNode.Parenthesize())
-                                   .WithSimplifierAnnotation();
+                                    .WithExpression(newNode.Parenthesize())
+                                    .WithSimplifierAnnotation();
                             }
                         }
                     }
@@ -80,8 +80,12 @@ namespace Roslynator.CSharp.Refactorings
             if (newNode == null)
                 newNode = ParseExpression(whenNotNull.ToString().Insert(expression.Span.End - whenNotNull.SpanStart, "?"));
 
-            if (coalesce || !semanticModel.GetTypeSymbol(whenNotNull, cancellationToken).IsReferenceTypeOrNullableType())
+            if (coalesce
+                || (!semanticModel.GetTypeSymbol(whenNotNull, cancellationToken).IsReferenceTypeOrNullableType()
+                    && (whenNull as DefaultExpressionSyntax)?.Type.IsKind(SyntaxKind.NullableType) != true))
+            {
                 newNode = CoalesceExpression(newNode.Parenthesize(), whenNull.Parenthesize());
+            }
 
             newNode = newNode
                 .WithTriviaFrom(conditionalExpression)

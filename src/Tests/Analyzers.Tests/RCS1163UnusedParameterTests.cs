@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Analysis.Tests
 {
-    public class RCS1163UnusedParameterTests : AbstractCSharpCodeFixVerifier
+    public class RCS1163UnusedParameterTests : AbstractCSharpFixVerifier
     {
         public override DiagnosticDescriptor Descriptor { get; } = DiagnosticDescriptors.UnusedParameter;
 
@@ -140,6 +140,25 @@ class C
     public static explicit operator C(string value)
     {
         throw new NotImplementedException();
+    }
+}
+");
+        }
+
+        [Fact, Trait(Traits.Analyzer, DiagnosticIdentifiers.UnusedParameter)]
+        public async Task TestNoDiagnostic_SwitchExpression()
+        {
+            await VerifyNoDiagnosticAsync(@"
+using System;
+
+class C
+{
+    string M(StringSplitOptions options)
+    {
+        return options switch
+        {
+            _ => """"
+        };
     }
 }
 ");

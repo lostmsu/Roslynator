@@ -19,15 +19,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSymbolAction(AnalyzeNamedType, SymbolKind.NamedType);
+            context.RegisterSymbolAction(f => AnalyzeNamedType(f), SymbolKind.NamedType);
         }
 
-        public static void AnalyzeNamedType(SymbolAnalysisContext context)
+        private static void AnalyzeNamedType(SymbolAnalysisContext context)
         {
             var symbol = (INamedTypeSymbol)context.Symbol;
 
@@ -56,7 +53,8 @@ namespace Roslynator.CSharp.Analysis
 
                 if (!modifiers.Contains(SyntaxKind.StaticKeyword))
                 {
-                    DiagnosticHelpers.ReportDiagnostic(context,
+                    DiagnosticHelpers.ReportDiagnostic(
+                        context,
                         DiagnosticDescriptors.AddStaticModifierToAllPartialClassDeclarations,
                         classDeclaration.Identifier);
                 }

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Roslynator.CSharp.Refactorings.Tests
 {
-    public class RR0189InvertIfTests : AbstractCSharpCodeRefactoringVerifier
+    public class RR0189InvertIfTests : AbstractCSharpRefactoringVerifier
     {
         public override string RefactoringId { get; } = RefactoringIdentifiers.InvertIf;
 
@@ -439,6 +439,31 @@ class C
     }
 
     void M2() => M();
+}
+", equivalenceKey: RefactoringId);
+        }
+
+        [Fact, Trait(Traits.Refactoring, RefactoringIdentifiers.InvertIf)]
+        public async Task TestNoRefactoring_NotTopmostIf()
+        {
+            await VerifyNoRefactoringAsync(@"
+class C
+{
+    void M()
+    {
+        bool f = false, f2 = false;
+
+        if (f)
+        {
+            return;
+        }
+        else [||]if (f2)
+        {
+            return;
+        }
+
+        M();
+    }
 }
 ", equivalenceKey: RefactoringId);
         }

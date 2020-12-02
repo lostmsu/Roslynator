@@ -23,7 +23,9 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsEnabled(CodeFixIdentifiers.ChangeAccessibility))
+            Diagnostic diagnostic = context.Diagnostics[0];
+
+            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.ChangeAccessibility))
                 return;
 
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
@@ -32,12 +34,10 @@ namespace Roslynator.CSharp.CodeFixes
                 root,
                 context.Span,
                 out SyntaxNode node,
-                predicate: CSharpOverriddenSymbolInfo.CanCreate))
+                predicate: f => CSharpOverriddenSymbolInfo.CanCreate(f)))
             {
                 return;
             }
-
-            Diagnostic diagnostic = context.Diagnostics[0];
 
             SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 

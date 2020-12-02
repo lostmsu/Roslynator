@@ -23,15 +23,15 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsEnabled(CodeFixIdentifiers.ChangeMethodReturnType))
+            Diagnostic diagnostic = context.Diagnostics[0];
+
+            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.ChangeMethodReturnType))
                 return;
 
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
 
             if (!TryFindFirstAncestorOrSelf(root, context.Span, out SyntaxNode node, predicate: f => f.IsKind(SyntaxKind.MethodDeclaration, SyntaxKind.LocalFunctionStatement)))
                 return;
-
-            Diagnostic diagnostic = context.Diagnostics[0];
 
             SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 
@@ -65,10 +65,8 @@ namespace Roslynator.CSharp.CodeFixes
 
         private static (bool containsReturnAwait, bool containsAwaitStatement) AnalyzeAwaitExpressions(SyntaxNode node)
         {
-            if (node.IsKind(SyntaxKind.MethodDeclaration))
+            if (node is MethodDeclarationSyntax methodDeclaration)
             {
-                var methodDeclaration = (MethodDeclarationSyntax)node;
-
                 ArrowExpressionClauseSyntax expressionBody = methodDeclaration.ExpressionBody;
 
                 if (expressionBody != null)
@@ -91,26 +89,22 @@ namespace Roslynator.CSharp.CodeFixes
             if (node == null)
                 return (false, false);
 
-            bool containsReturnAwait = false;
-            bool containsAwaitStatement = false;
+            var containsReturnAwait = false;
+            var containsAwaitStatement = false;
 
             foreach (SyntaxNode descendant in node.DescendantNodes(node.Span, f => !CSharpFacts.IsFunction(f.Kind())))
             {
-                switch (descendant.Kind())
+                switch (descendant)
                 {
-                    case SyntaxKind.ReturnStatement:
+                    case ReturnStatementSyntax returnStatement:
                         {
-                            var returnStatement = (ReturnStatementSyntax)descendant;
-
                             if (returnStatement.Expression?.WalkDownParentheses().Kind() == SyntaxKind.AwaitExpression)
                                 containsReturnAwait = true;
 
                             break;
                         }
-                    case SyntaxKind.ExpressionStatement:
+                    case ExpressionStatementSyntax expressionStatement:
                         {
-                            var expressionStatement = (ExpressionStatementSyntax)descendant;
-
                             if (expressionStatement.Expression?.Kind() == SyntaxKind.AwaitExpression)
                                 containsAwaitStatement = true;
 

@@ -19,15 +19,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeUsingDirective, SyntaxKind.UsingDirective);
+            context.RegisterSyntaxNodeAction(f => AnalyzeUsingDirective(f), SyntaxKind.UsingDirective);
         }
 
-        public static void AnalyzeUsingDirective(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeUsingDirective(SyntaxNodeAnalysisContext context)
         {
             var usingDirective = (UsingDirectiveSyntax)context.Node;
 

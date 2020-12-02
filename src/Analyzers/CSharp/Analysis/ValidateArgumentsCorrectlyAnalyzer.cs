@@ -21,15 +21,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeMethodDeclaration, SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(f => AnalyzeMethodDeclaration(f), SyntaxKind.MethodDeclaration);
         }
 
-        public static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
 
@@ -43,34 +40,15 @@ namespace Roslynator.CSharp.Analysis
             if (parameterList == null)
                 return;
 
-            if (parameterList.Parameters.Count == 0)
+            if (!parameterList.Parameters.Any())
                 return;
 
             SyntaxList<StatementSyntax> statements = body.Statements;
 
             int statementCount = statements.Count;
 
-            if (statementCount == 0)
-                return;
-
-            if (!IsNullCheck(statements[0]))
-                return;
-
-            context.CancellationToken.ThrowIfCancellationRequested();
-
-            ContainsYieldWalker walker = ContainsYieldWalker.Cache.GetInstance();
-
-            walker.VisitBlock(body);
-
-            YieldStatementSyntax yieldStatement = walker.YieldStatement;
-
-            ContainsYieldWalker.Cache.Free(walker);
-
-            if (yieldStatement == null)
-                return;
-
-            int index = 0;
-            for (int i = 1; i < statementCount; i++)
+            int index = -1;
+            for (int i = 0; i < statementCount; i++)
             {
                 if (IsNullCheck(statements[i]))
                 {
@@ -82,10 +60,35 @@ namespace Roslynator.CSharp.Analysis
                 }
             }
 
+            if (index == -1)
+                return;
+
+            if (index == statementCount - 1)
+                return;
+
+            TextSpan span = TextSpan.FromBounds(statements[index + 1].SpanStart, statements.Last().Span.End);
+
+            if (body.ContainsUnbalancedIfElseDirectives(span))
+                return;
+
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            ContainsYieldWalker walker = ContainsYieldWalker.GetInstance();
+
+            walker.VisitBlock(body);
+
+            YieldStatementSyntax yieldStatement = walker.YieldStatement;
+
+            ContainsYieldWalker.Free(walker);
+
+            if (yieldStatement == null)
+                return;
+
             if (yieldStatement.SpanStart < statements[index].Span.End)
                 return;
 
-            DiagnosticHelpers.ReportDiagnostic(context,
+            DiagnosticHelpers.ReportDiagnostic(
+                context,
                 DiagnosticDescriptors.ValidateArgumentsCorrectly,
                 Location.Create(body.SyntaxTree, new TextSpan(statements[index + 1].SpanStart, 0)));
         }

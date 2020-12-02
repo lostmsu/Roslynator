@@ -19,19 +19,15 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
-            context.EnableConcurrentExecution();
 
-            context.RegisterSyntaxNodeAction(AnalyzeQualifiedName, SyntaxKind.QualifiedName);
-            context.RegisterSyntaxNodeAction(AnalyzeIdentifierName, SyntaxKind.IdentifierName);
-            context.RegisterSyntaxNodeAction(AnalyzeXmlCrefAttribute, SyntaxKind.XmlCrefAttribute);
-            context.RegisterSyntaxNodeAction(AnalyzeSimpleMemberAccessExpression, SyntaxKind.SimpleMemberAccessExpression);
+            context.RegisterSyntaxNodeAction(f => AnalyzeQualifiedName(f), SyntaxKind.QualifiedName);
+            context.RegisterSyntaxNodeAction(f => AnalyzeIdentifierName(f), SyntaxKind.IdentifierName);
+            context.RegisterSyntaxNodeAction(f => AnalyzeXmlCrefAttribute(f), SyntaxKind.XmlCrefAttribute);
+            context.RegisterSyntaxNodeAction(f => AnalyzeSimpleMemberAccessExpression(f), SyntaxKind.SimpleMemberAccessExpression);
         }
 
-        public static void AnalyzeIdentifierName(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeIdentifierName(SyntaxNodeAnalysisContext context)
         {
             var identifierName = (IdentifierNameSyntax)context.Node;
 
@@ -69,7 +65,7 @@ namespace Roslynator.CSharp.Analysis
             ReportDiagnostic(context, identifierName);
         }
 
-        public static void AnalyzeXmlCrefAttribute(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeXmlCrefAttribute(SyntaxNodeAnalysisContext context)
         {
             var xmlCrefAttribute = (XmlCrefAttributeSyntax)context.Node;
 
@@ -119,7 +115,7 @@ namespace Roslynator.CSharp.Analysis
             ReportDiagnostic(context, cref);
         }
 
-        public static void AnalyzeQualifiedName(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeQualifiedName(SyntaxNodeAnalysisContext context)
         {
             var qualifiedName = (QualifiedNameSyntax)context.Node;
 
@@ -144,7 +140,7 @@ namespace Roslynator.CSharp.Analysis
             ReportDiagnostic(context, qualifiedName);
         }
 
-        public static void AnalyzeSimpleMemberAccessExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeSimpleMemberAccessExpression(SyntaxNodeAnalysisContext context)
         {
             var memberAccess = (MemberAccessExpressionSyntax)context.Node;
 

@@ -12,13 +12,13 @@ namespace Roslynator.CSharp.Refactorings
 {
     internal static class SelectedMemberDeclarationsRefactoring
     {
-        public static ImmutableDictionary<Accessibility, string> _accessiblityIdentifierMap = ImmutableDictionary.CreateRange(new KeyValuePair<Accessibility, string>[]
-        {
-            new KeyValuePair<Accessibility, string>(Accessibility.Public, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Public))),
-            new KeyValuePair<Accessibility, string>(Accessibility.Internal, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Internal))),
-            new KeyValuePair<Accessibility, string>(Accessibility.Protected, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Protected))),
-            new KeyValuePair<Accessibility, string>(Accessibility.Private, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Private)))
-        });
+        public static ImmutableDictionary<Accessibility, string> _accessiblityIdentifierMap = ImmutableDictionary.CreateRange(new[]
+            {
+                new KeyValuePair<Accessibility, string>(Accessibility.Public, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Public))),
+                new KeyValuePair<Accessibility, string>(Accessibility.Internal, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Internal))),
+                new KeyValuePair<Accessibility, string>(Accessibility.Protected, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Protected))),
+                new KeyValuePair<Accessibility, string>(Accessibility.Private, EquivalenceKey.Join(RefactoringIdentifiers.ChangeAccessibility, nameof(Accessibility.Private)))
+            });
 
         public static async Task ComputeRefactoringAsync(RefactoringContext context, MemberDeclarationListSelection selectedMembers)
         {
@@ -27,9 +27,9 @@ namespace Roslynator.CSharp.Refactorings
             {
                 SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 
-                Accessibilities validAccessibilities = ChangeAccessibilityAnalysis.GetValidAccessibilities(selectedMembers, semanticModel, context.CancellationToken);
+                AccessibilityFilter validAccessibilities = ChangeAccessibilityAnalysis.GetValidAccessibilityFilter(selectedMembers, semanticModel, context.CancellationToken);
 
-                if (validAccessibilities != Accessibilities.None)
+                if (validAccessibilities != AccessibilityFilter.None)
                 {
                     bool canHaveMultipleDeclarations = CanHaveMultipleDeclarations();
 
@@ -41,10 +41,10 @@ namespace Roslynator.CSharp.Refactorings
             }
 
             if (context.IsAnyRefactoringEnabled(
-                RefactoringIdentifiers.UseExpressionBodiedMember,
-                RefactoringIdentifiers.ExpandExpressionBody))
+                RefactoringIdentifiers.ConvertBlockBodyToExpressionBody,
+                RefactoringIdentifiers.ConvertExpressionBodyToBlockBody))
             {
-                InvertBodyAndExpressionBodyRefactoring.ComputeRefactoring(context, selectedMembers);
+                ConvertBodyAndExpressionBodyRefactoring.ComputeRefactoring(context, selectedMembers);
             }
 
             if (context.IsRefactoringEnabled(RefactoringIdentifiers.InitializeFieldFromConstructor)
@@ -58,9 +58,9 @@ namespace Roslynator.CSharp.Refactorings
                 AddEmptyLineBetweenDeclarationsRefactoring.ComputeRefactoring(context, selectedMembers);
             }
 
-            void TryRegisterRefactoring(Accessibilities accessibilities, Accessibility accessibility, bool canHaveMultipleDeclarations)
+            void TryRegisterRefactoring(AccessibilityFilter accessibilities, Accessibility accessibility, bool canHaveMultipleDeclarations)
             {
-                if ((accessibilities & accessibility.GetAccessibilities()) != 0)
+                if ((accessibilities & accessibility.GetAccessibilityFilter()) != 0)
                 {
                     if (canHaveMultipleDeclarations)
                     {

@@ -19,22 +19,19 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeForStatement, SyntaxKind.ForStatement);
+            context.RegisterSyntaxNodeAction(f => AnalyzeForStatement(f), SyntaxKind.ForStatement);
         }
 
-        public static void AnalyzeForStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeForStatement(SyntaxNodeAnalysisContext context)
         {
             var forStatement = (ForStatementSyntax)context.Node;
 
             if (forStatement.Declaration == null
                 && forStatement.Condition == null
-                && forStatement.Incrementors.Count == 0
-                && forStatement.Initializers.Count == 0
+                && !forStatement.Incrementors.Any()
+                && !forStatement.Initializers.Any()
                 && !forStatement.OpenParenToken.ContainsDirectives
                 && !forStatement.FirstSemicolonToken.ContainsDirectives
                 && !forStatement.SecondSemicolonToken.ContainsDirectives

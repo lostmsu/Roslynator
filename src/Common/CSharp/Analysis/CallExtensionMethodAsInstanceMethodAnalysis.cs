@@ -20,7 +20,7 @@ namespace Roslynator.CSharp.Analysis
             InvocationExpressionSyntax invocationExpression,
             SemanticModel semanticModel,
             bool allowAnyExpression = false,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ExpressionSyntax expression = invocationExpression
                 .ArgumentList?
@@ -62,10 +62,9 @@ namespace Roslynator.CSharp.Analysis
             if (newInvocationExpression == null)
                 return Fail;
 
-            if (semanticModel
-                .GetSpeculativeMethodSymbol(invocationExpression.SpanStart, newInvocationExpression)?
-                .ReducedFromOrSelf()
-                .Equals(methodSymbol.ConstructedFrom) != true)
+            if (!SymbolEqualityComparer.Default.Equals(
+                semanticModel.GetSpeculativeMethodSymbol(invocationExpression.SpanStart, newInvocationExpression)?.ReducedFromOrSelf(),
+                methodSymbol.ConstructedFrom))
             {
                 return Fail;
             }
@@ -93,7 +92,7 @@ namespace Roslynator.CSharp.Analysis
             ExpressionSyntax expression = invocation.Expression;
             ArgumentListSyntax argumentList = invocation.ArgumentList;
             SeparatedSyntaxList<ArgumentSyntax> arguments = argumentList.Arguments;
-            ArgumentSyntax argument = arguments.First();
+            ArgumentSyntax argument = arguments[0];
 
             MemberAccessExpressionSyntax newMemberAccess = CreateNewMemberAccessExpression();
 

@@ -12,7 +12,7 @@ namespace Roslynator.CodeGeneration.CSharp
 {
     public static class RefactoringsOptionsPageGenerator
     {
-        public static CompilationUnitSyntax Generate(IEnumerable<RefactoringDescriptor> refactorings, IComparer<string> comparer)
+        public static CompilationUnitSyntax Generate(IEnumerable<RefactoringMetadata> refactorings, IComparer<string> comparer)
         {
             return CompilationUnit(
                 UsingDirectives(
@@ -26,21 +26,8 @@ namespace Roslynator.CodeGeneration.CSharp
                         CreateMembers(refactorings, comparer).ToSyntaxList())));
         }
 
-        private static IEnumerable<MemberDeclarationSyntax> CreateMembers(IEnumerable<RefactoringDescriptor> refactorings, IComparer<string> comparer)
+        private static IEnumerable<MemberDeclarationSyntax> CreateMembers(IEnumerable<RefactoringMetadata> refactorings, IComparer<string> comparer)
         {
-            yield return PropertyDeclaration(
-                Modifiers.Protected_Override(),
-                PredefinedStringType(),
-                Identifier("DisabledByDefault"),
-                AccessorList(AutoGetAccessorDeclaration()),
-                ParseExpression(
-                    "$\"" +
-                    string.Join(",", refactorings
-                        .Where(f => !f.IsEnabledByDefault)
-                        .OrderBy(f => f.Identifier, comparer)
-                        .Select(f => $"{{RefactoringIdentifiers.{f.Identifier}}}")) +
-                    "\""));
-
             yield return PropertyDeclaration(
                 Modifiers.Protected_Override(),
                 PredefinedStringType(),

@@ -34,10 +34,8 @@ namespace Roslynator.CSharp.CodeFixes
             if (!TryFindFirstAncestorOrSelf(root, context.Span, out SyntaxNode node, predicate: f => f.IsKind(SyntaxKind.VariableDeclaration, SyntaxKind.DeclarationExpression)))
                 return;
 
-            if (node.IsKind(SyntaxKind.VariableDeclaration))
+            if (node is VariableDeclarationSyntax variableDeclaration)
             {
-                var variableDeclaration = (VariableDeclarationSyntax)node;
-
                 TypeSyntax type = variableDeclaration.Type;
 
                 SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
@@ -56,7 +54,9 @@ namespace Roslynator.CSharp.CodeFixes
 
                 var localSymbol = semanticModel.GetDeclaredSymbol(declarationExpression.Designation, context.CancellationToken) as ILocalSymbol;
 
-                RegisterCodeFix(context, type, localSymbol.Type, semanticModel);
+                ITypeSymbol typeSymbol = (localSymbol?.Type) ?? semanticModel.GetTypeSymbol(declarationExpression, context.CancellationToken);
+
+                RegisterCodeFix(context, type, typeSymbol, semanticModel);
             }
         }
 

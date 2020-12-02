@@ -50,7 +50,7 @@ namespace Roslynator.CSharp.Refactorings
 
                         if (CanBeAssignedFromConstructor(member, context.Span, semanticModel, context.CancellationToken))
                         {
-                            (members ?? (members = new List<MemberDeclarationSyntax>())).Add(member);
+                            (members ??= new List<MemberDeclarationSyntax>()).Add(member);
                         }
                     }
                 }
@@ -201,7 +201,7 @@ namespace Roslynator.CSharp.Refactorings
                 ExpressionSyntax expression = expressionBody.Expression;
 
                 return expression != null
-                    && symbol.Equals(GetBackingFieldSymbol(expression, semanticModel, cancellationToken));
+                    && SymbolEqualityComparer.Default.Equals(symbol, GetBackingFieldSymbol(expression, semanticModel, cancellationToken));
             }
             else
             {
@@ -223,14 +223,14 @@ namespace Roslynator.CSharp.Refactorings
                 StatementSyntax statement = body.Statements.SingleOrDefault(shouldThrow: false);
 
                 if (statement != null)
-                    return symbol.Equals(GetBackingFieldSymbol(statement, semanticModel, cancellationToken));
+                    return SymbolEqualityComparer.Default.Equals(symbol, GetBackingFieldSymbol(statement, semanticModel, cancellationToken));
             }
             else
             {
                 ExpressionSyntax expression = getter.ExpressionBody?.Expression;
 
                 return expression != null
-                    && symbol.Equals(GetBackingFieldSymbol(expression, semanticModel, cancellationToken));
+                    && SymbolEqualityComparer.Default.Equals(symbol, GetBackingFieldSymbol(expression, semanticModel, cancellationToken));
             }
 
             return false;
@@ -239,7 +239,7 @@ namespace Roslynator.CSharp.Refactorings
         private static ISymbol GetBackingFieldSymbol(
             StatementSyntax statement,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (statement is ReturnStatementSyntax returnStatement)
             {
@@ -255,7 +255,7 @@ namespace Roslynator.CSharp.Refactorings
         private static ISymbol GetBackingFieldSymbol(
             ExpressionSyntax expression,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (IsIdentifierNameOptionallyQualifiedWithThis(expression))
             {
@@ -293,7 +293,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             MemberDeclarationSyntax declaration,
             List<MemberDeclarationSyntax> assignableMembers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             MemberDeclarationListInfo info = SyntaxInfo.MemberDeclarationListInfo(GetContainingDeclaration(declaration));
 
@@ -343,8 +343,8 @@ namespace Roslynator.CSharp.Refactorings
                 string parameterName = StringUtility.ToCamelCase(name);
 
                 statements.Add(SimpleAssignmentStatement(
-                        IdentifierName(name).QualifyWithThis(),
-                        IdentifierName(parameterName)));
+                    IdentifierName(name).QualifyWithThis(),
+                    IdentifierName(parameterName)));
 
                 parameters.Add(Parameter(
                     default(SyntaxList<AttributeListSyntax>),
@@ -386,7 +386,7 @@ namespace Roslynator.CSharp.Refactorings
                     return ((FieldDeclarationSyntax)memberDeclaration).Declaration.Variables[0].Identifier;
             }
 
-            return default(SyntaxToken);
+            return default;
         }
 
         private static SyntaxToken GetPropertyIdentifier(PropertyDeclarationSyntax propertyDeclaration)
@@ -445,7 +445,7 @@ namespace Roslynator.CSharp.Refactorings
 
             Debug.Fail(expression.Kind().ToString());
 
-            return default(SyntaxToken);
+            return default;
         }
     }
 }

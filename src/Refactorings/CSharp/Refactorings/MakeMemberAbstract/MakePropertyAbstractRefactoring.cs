@@ -31,7 +31,7 @@ namespace Roslynator.CSharp.Refactorings.MakeMemberAbstract
         public static Task<Document> RefactorAsync(
             Document document,
             PropertyDeclarationSyntax propertyDeclaration,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             AccessorListSyntax accessorList = AccessorList();
 
@@ -49,8 +49,8 @@ namespace Roslynator.CSharp.Refactorings.MakeMemberAbstract
                         getter = SyntaxAccessibility.WithExplicitAccessibility(getter, Accessibility.Protected);
 
                     accessorList = accessorList.AddAccessors(getter
-                       .WithBody(null)
-                       .WithSemicolonToken(SemicolonToken()));
+                        .WithBody(null)
+                        .WithSemicolonToken(SemicolonToken()));
                 }
 
                 AccessorDeclarationSyntax setter = propertyDeclaration.Setter();
@@ -60,8 +60,8 @@ namespace Roslynator.CSharp.Refactorings.MakeMemberAbstract
                         setter = SyntaxAccessibility.WithExplicitAccessibility(setter, Accessibility.Protected);
 
                     accessorList = accessorList.AddAccessors(setter
-                       .WithBody(null)
-                       .WithSemicolonToken(SemicolonToken()));
+                        .WithBody(null)
+                        .WithSemicolonToken(SemicolonToken()));
                 }
             }
 

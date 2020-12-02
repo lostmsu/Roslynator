@@ -68,7 +68,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
         public virtual Task<Document> InlineAsync(
             SyntaxNode node,
             ExpressionSyntax expression,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ExpressionSyntax newExpression = RewriteExpression(node, expression);
 
@@ -78,7 +78,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
         public virtual async Task<Solution> InlineAndRemoveAsync(
             SyntaxNode node,
             ExpressionSyntax expression,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (node.SyntaxTree == Declaration.SyntaxTree)
             {
@@ -115,7 +115,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
         public virtual Task<Document> InlineAsync(
             ExpressionStatementSyntax expressionStatement,
             SyntaxList<StatementSyntax> statements,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             int count = statements.Count;
 
@@ -141,7 +141,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
         public virtual async Task<Solution> InlineAndRemoveAsync(
             ExpressionStatementSyntax expressionStatement,
             SyntaxList<StatementSyntax> statements,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (expressionStatement.SyntaxTree == Declaration.SyntaxTree)
             {
@@ -249,7 +249,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
                                 replacementMap.Add(identifierName, typeArguments[typeParameter.Ordinal].ToMinimalTypeSyntax(DeclarationSemanticModel, identifierName.SpanStart));
                         }
                         else if (symbol.IsStatic
-                            && !identifierName.IsParentKind(SyntaxKind.SimpleMemberAccessExpression))
+                            && !identifierName.IsParentKind(SyntaxKind.SimpleMemberAccessExpression, SyntaxKind.QualifiedName))
                         {
                             INamedTypeSymbol containingType = symbol.ContainingType;
 
@@ -257,7 +257,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
                             {
                                 if (!NodeEnclosingType
                                     .BaseTypesAndSelf()
-                                    .Any(f => f.Equals(containingType)))
+                                    .Any(f => SymbolEqualityComparer.Default.Equals(f, containingType)))
                                 {
                                     replacementMap.Add(identifierName, CSharpFactory.SimpleMemberAccessExpression(containingType.ToTypeSyntax().WithSimplifierAnnotation(), identifierName));
                                 }
@@ -277,30 +277,34 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
                 }
                 else if (symbolMap != null)
                 {
-                    if (kind.Is(
-                        SyntaxKind.VariableDeclarator,
-                        SyntaxKind.SingleVariableDesignation,
-                        SyntaxKind.Parameter,
-                        SyntaxKind.TypeParameter,
-                        SyntaxKind.ForEachStatement,
-                        SyntaxKind.ForEachVariableStatement))
+                    switch (kind)
                     {
-                        ISymbol symbol = DeclarationSemanticModel.GetDeclaredSymbol(descendant, CancellationToken);
+                        case SyntaxKind.VariableDeclarator:
+                        case SyntaxKind.SingleVariableDesignation:
+                        case SyntaxKind.Parameter:
+                        case SyntaxKind.TypeParameter:
+                        case SyntaxKind.ForEachStatement:
+                        case SyntaxKind.ForEachVariableStatement:
+                            {
+                                ISymbol symbol = DeclarationSemanticModel.GetDeclaredSymbol(descendant, CancellationToken);
 
-                        Debug.Assert(symbol != null || (descendant as ForEachVariableStatementSyntax)?.Variable?.Kind() == SyntaxKind.TupleExpression, kind.ToString());
+                                Debug.Assert(symbol != null || (descendant as ForEachVariableStatementSyntax)?.Variable?.Kind() == SyntaxKind.TupleExpression, kind.ToString());
 
-                        if (symbol != null
-                            && symbolMap.TryGetValue(symbol, out string name))
-                        {
-                            replacementMap.Add(descendant, name);
-                        }
+                                if (symbol != null
+                                    && symbolMap.TryGetValue(symbol, out string name))
+                                {
+                                    replacementMap.Add(descendant, name);
+                                }
+
+                                break;
+                            }
                     }
                 }
             }
 
             return replacementMap;
 
-            bool ParameterEquals(in ParameterInfo parameterInfo, IParameterSymbol parameterSymbol2)
+            static bool ParameterEquals(in ParameterInfo parameterInfo, IParameterSymbol parameterSymbol2)
             {
                 IParameterSymbol parameterSymbol = parameterInfo.ParameterSymbol;
 
@@ -319,7 +323,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
                     }
                 }
 
-                return parameterSymbol.OriginalDefinition.Equals(parameterSymbol2);
+                return SymbolEqualityComparer.Default.Equals(parameterSymbol.OriginalDefinition, parameterSymbol2);
             }
         }
 
@@ -354,7 +358,7 @@ namespace Roslynator.CSharp.Refactorings.InlineDefinition
             foreach (ISymbol symbol in declarationSymbols)
             {
                 if (reservedNames.Contains(symbol.Name))
-                    (symbols ?? (symbols = new List<ISymbol>())).Add(symbol);
+                    (symbols ??= new List<ISymbol>()).Add(symbol);
             }
 
             if (symbols == null)

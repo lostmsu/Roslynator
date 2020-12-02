@@ -23,13 +23,6 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsAnyEnabled(
-                CodeFixIdentifiers.AddStaticModifier,
-                CodeFixIdentifiers.MakeMemberNonStatic))
-            {
-                return;
-            }
-
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
 
             if (!TryFindNode(root, context.Span, out SyntaxNode node))
@@ -41,34 +34,37 @@ namespace Roslynator.CSharp.CodeFixes
             {
                 if (parent is MemberDeclarationSyntax memberDeclaration)
                 {
+                    SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
+
+                    ISymbol symbol = semanticModel.GetSymbol(node, context.CancellationToken);
+
+                    if (symbol?.IsErrorType() != false)
+                        return;
+
                     Debug.Assert(SyntaxInfo.ModifierListInfo(memberDeclaration).IsStatic, memberDeclaration.ToString());
 
                     if (SyntaxInfo.ModifierListInfo(memberDeclaration).IsStatic)
                     {
-                        if (Settings.IsEnabled(CodeFixIdentifiers.MakeMemberNonStatic))
+                        if (Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.MakeMemberNonStatic))
                         {
                             ModifiersCodeFixRegistrator.RemoveModifier(
-                            context,
-                            diagnostic,
-                            memberDeclaration,
-                            SyntaxKind.StaticKeyword,
-                            title: $"Make containing {CSharpFacts.GetTitle(memberDeclaration)} non-static",
-                            additionalKey: CodeFixIdentifiers.MakeMemberNonStatic);
+                                context,
+                                diagnostic,
+                                memberDeclaration,
+                                SyntaxKind.StaticKeyword,
+                                title: $"Make containing {CSharpFacts.GetTitle(memberDeclaration)} non-static",
+                                additionalKey: CodeFixIdentifiers.MakeMemberNonStatic);
                         }
 
-                        if (Settings.IsEnabled(CodeFixIdentifiers.AddStaticModifier))
-                        {
-                            SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
-
+                        if (Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.AddStaticModifier))
                             AddStaticModifier(context, diagnostic, node, semanticModel);
-                        }
                     }
 
                     return;
                 }
                 else if (parent is ConstructorInitializerSyntax)
                 {
-                    if (Settings.IsEnabled(CodeFixIdentifiers.AddStaticModifier))
+                    if (Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.AddStaticModifier))
                     {
                         SemanticModel semanticModel = await context.GetSemanticModelAsync().ConfigureAwait(false);
 

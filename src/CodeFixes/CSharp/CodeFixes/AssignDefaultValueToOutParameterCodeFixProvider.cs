@@ -31,7 +31,9 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsEnabled(CodeFixIdentifiers.AssignDefaultValueToOutParameter))
+            Diagnostic diagnostic = context.Diagnostics[0];
+
+            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.AssignDefaultValueToOutParameter))
                 return;
 
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
@@ -44,8 +46,6 @@ namespace Roslynator.CSharp.CodeFixes
             {
                 return;
             }
-
-            Diagnostic diagnostic = context.Diagnostics[0];
 
             StatementSyntax statement = null;
 
@@ -87,7 +87,7 @@ namespace Roslynator.CSharp.CodeFixes
             ImmutableArray<ISymbol> alwaysAssigned = dataFlowAnalysis.AlwaysAssigned;
 
             IParameterSymbol singleParameter = null;
-            bool isAny = false;
+            var isAny = false;
             foreach (IParameterSymbol parameter in parameters)
             {
                 if (parameter.RefKind == RefKind.Out
@@ -139,7 +139,7 @@ namespace Roslynator.CSharp.CodeFixes
             ImmutableArray<IParameterSymbol> parameterSymbols,
             ImmutableArray<ISymbol> alwaysAssigned,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             IEnumerable<ExpressionStatementSyntax> expressionStatements = parameterSymbols
                 .Where(f => f.RefKind == RefKind.Out && !alwaysAssigned.Contains(f))
@@ -156,7 +156,7 @@ namespace Roslynator.CSharp.CodeFixes
 
             if (bodyOrExpressionBody is ArrowExpressionClauseSyntax expressionBody)
             {
-                newNode = ExpandExpressionBodyRefactoring.Refactor(expressionBody, semanticModel, cancellationToken);
+                newNode = ConvertExpressionBodyToBlockBodyRefactoring.Refactor(expressionBody, semanticModel, cancellationToken);
 
                 newNode = InsertStatements(newNode, expressionStatements);
             }

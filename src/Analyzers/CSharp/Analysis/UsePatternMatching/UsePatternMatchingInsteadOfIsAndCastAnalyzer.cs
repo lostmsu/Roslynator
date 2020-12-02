@@ -21,15 +21,18 @@ namespace Roslynator.CSharp.Analysis.UsePatternMatching
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeIsExpression, SyntaxKind.IsExpression);
+            context.RegisterCompilationStartAction(startContext =>
+            {
+                if (((CSharpCompilation)startContext.Compilation).LanguageVersion < LanguageVersion.CSharp7)
+                    return;
+
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeIsExpression(f), SyntaxKind.IsExpression);
+            });
         }
 
-        public static void AnalyzeIsExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeIsExpression(SyntaxNodeAnalysisContext context)
         {
             var isExpression = (BinaryExpressionSyntax)context.Node;
 
@@ -125,13 +128,17 @@ namespace Roslynator.CSharp.Analysis.UsePatternMatching
             SemanticModel semanticModel,
             CancellationToken cancellationToken)
         {
-            UsePatternMatchingWalker walker = UsePatternMatchingWalkerCache.GetInstance();
+            UsePatternMatchingWalker walker = UsePatternMatchingWalker.GetInstance();
 
             walker.SetValues(identifierName, semanticModel, cancellationToken);
 
             walker.Visit(node);
 
-            return UsePatternMatchingWalkerCache.GetIsFixableAndFree(walker);
+            bool isFixable = walker.IsFixable.GetValueOrDefault();
+
+            UsePatternMatchingWalker.Free(walker);
+
+            return isFixable;
         }
     }
 }

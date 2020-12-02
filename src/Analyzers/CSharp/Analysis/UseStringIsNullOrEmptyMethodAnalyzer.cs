@@ -22,17 +22,15 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression,
+            context.RegisterSyntaxNodeAction(
+                f => AnalyzeBinaryExpression(f),
                 SyntaxKind.LogicalOrExpression,
                 SyntaxKind.LogicalAndExpression);
         }
 
-        public static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context)
         {
             var binaryExpression = (BinaryExpressionSyntax)context.Node;
 
@@ -81,7 +79,7 @@ namespace Roslynator.CSharp.Analysis
             ExpressionSyntax left,
             BinaryExpressionSyntax right,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             NullCheckExpressionInfo nullCheck = SyntaxInfo.NullCheckExpressionInfo(left);
 
@@ -121,8 +119,9 @@ namespace Roslynator.CSharp.Analysis
             SemanticModel semanticModel,
             CancellationToken cancellationToken)
         {
-            return semanticModel.GetSymbol(expression1, cancellationToken)?
-                .Equals(semanticModel.GetSymbol(expression2, cancellationToken)) == true;
+            return SymbolEqualityComparer.Default.Equals(
+                semanticModel.GetSymbol(expression1, cancellationToken),
+                semanticModel.GetSymbol(expression2, cancellationToken));
         }
     }
 }

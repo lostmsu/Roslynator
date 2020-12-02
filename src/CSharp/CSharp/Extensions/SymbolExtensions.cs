@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using static Roslynator.CSharp.CSharpFactory;
@@ -14,14 +16,98 @@ namespace Roslynator.CSharp
     /// </summary>
     public static class SymbolExtensions
     {
-        private static SymbolDisplayFormat DefaultSymbolDisplayFormat { get; } = new SymbolDisplayFormat(
-            globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
-            genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
-            typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
-            miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
-                | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
+        #region INamedTypeSymbol
+        internal static string ToDisplayString(this INamedTypeSymbol typeSymbol, SymbolDisplayFormat format, SymbolDisplayTypeDeclarationOptions typeDeclarationOptions)
+        {
+            return typeSymbol.ToDisplayParts(format, typeDeclarationOptions).ToDisplayString();
+        }
 
-        private static SymbolDisplayFormat IsReadOnlyStructSymbolDisplayFormat { get; } = new SymbolDisplayFormat(kindOptions: SymbolDisplayKindOptions.IncludeTypeKeyword);
+        internal static ImmutableArray<SymbolDisplayPart> ToDisplayParts(this INamedTypeSymbol typeSymbol, SymbolDisplayFormat format, SymbolDisplayTypeDeclarationOptions typeDeclarationOptions)
+        {
+            if (typeDeclarationOptions == SymbolDisplayTypeDeclarationOptions.None)
+                return typeSymbol.ToDisplayParts(format);
+
+            ImmutableArray<SymbolDisplayPart> parts = typeSymbol.ToDisplayParts(format);
+
+            ImmutableArray<SymbolDisplayPart>.Builder builder = ImmutableArray.CreateBuilder<SymbolDisplayPart>(parts.Length);
+
+            if ((typeDeclarationOptions & SymbolDisplayTypeDeclarationOptions.IncludeAccessibility) != 0)
+            {
+                switch (typeSymbol.DeclaredAccessibility)
+                {
+                    case Accessibility.Public:
+                        {
+                            AddKeyword(SyntaxKind.PublicKeyword);
+                            break;
+                        }
+                    case Accessibility.ProtectedOrInternal:
+                        {
+                            AddKeyword(SyntaxKind.ProtectedKeyword);
+                            AddKeyword(SyntaxKind.InternalKeyword);
+                            break;
+                        }
+                    case Accessibility.Internal:
+                        {
+                            AddKeyword(SyntaxKind.InternalKeyword);
+                            break;
+                        }
+                    case Accessibility.Protected:
+                        {
+                            AddKeyword(SyntaxKind.ProtectedKeyword);
+                            break;
+                        }
+                    case Accessibility.ProtectedAndInternal:
+                        {
+                            AddKeyword(SyntaxKind.PrivateKeyword);
+                            AddKeyword(SyntaxKind.ProtectedKeyword);
+                            break;
+                        }
+                    case Accessibility.Private:
+                        {
+                            AddKeyword(SyntaxKind.PrivateKeyword);
+                            break;
+                        }
+                    default:
+                        {
+                            throw new InvalidOperationException();
+                        }
+                }
+            }
+
+            if ((typeDeclarationOptions & SymbolDisplayTypeDeclarationOptions.IncludeModifiers) != 0)
+            {
+                if (typeSymbol.IsStatic)
+                    AddKeyword(SyntaxKind.StaticKeyword);
+
+                if (typeSymbol.IsSealed
+                    && !typeSymbol.TypeKind.Is(TypeKind.Struct, TypeKind.Enum, TypeKind.Delegate))
+                {
+                    AddKeyword(SyntaxKind.SealedKeyword);
+                }
+
+                if (typeSymbol.IsAbstract
+                    && typeSymbol.TypeKind != TypeKind.Interface)
+                {
+                    AddKeyword(SyntaxKind.AbstractKeyword);
+                }
+            }
+
+            builder.AddRange(parts);
+
+            return builder.ToImmutableArray();
+
+            void AddKeyword(SyntaxKind kind)
+            {
+                builder.Add(SymbolDisplayPartFactory.Keyword(SyntaxFacts.GetText(kind)));
+                AddSpace();
+            }
+
+            void AddSpace()
+            {
+                builder.Add(SymbolDisplayPartFactory.Space());
+            }
+        }
+        #endregion INamedTypeSymbol
 
         #region INamespaceOrTypeSymbol
         /// <summary>
@@ -29,7 +115,6 @@ namespace Roslynator.CSharp
         /// </summary>
         /// <param name="namespaceOrTypeSymbol"></param>
         /// <param name="format"></param>
-        /// <returns></returns>
         public static TypeSyntax ToTypeSyntax(this INamespaceOrTypeSymbol namespaceOrTypeSymbol, SymbolDisplayFormat format = null)
         {
             if (namespaceOrTypeSymbol == null)
@@ -52,7 +137,6 @@ namespace Roslynator.CSharp
         /// <param name="semanticModel"></param>
         /// <param name="position"></param>
         /// <param name="format"></param>
-        /// <returns></returns>
         public static TypeSyntax ToMinimalTypeSyntax(this INamespaceOrTypeSymbol namespaceOrTypeSymbol, SemanticModel semanticModel, int position, SymbolDisplayFormat format = null)
         {
             if (namespaceOrTypeSymbol == null)
@@ -78,7 +162,6 @@ namespace Roslynator.CSharp
         /// </summary>
         /// <param name="namespaceSymbol"></param>
         /// <param name="format"></param>
-        /// <returns></returns>
         public static TypeSyntax ToTypeSyntax(this INamespaceSymbol namespaceSymbol, SymbolDisplayFormat format = null)
         {
             if (namespaceSymbol == null)
@@ -86,7 +169,7 @@ namespace Roslynator.CSharp
 
             ThrowIfExplicitDeclarationIsNotSupported(namespaceSymbol);
 
-            return ParseTypeName(namespaceSymbol.ToDisplayString(format ?? DefaultSymbolDisplayFormat));
+            return ParseTypeName(namespaceSymbol.ToDisplayString(format ?? SymbolDisplayFormats.FullName));
         }
 
         /// <summary>
@@ -96,7 +179,6 @@ namespace Roslynator.CSharp
         /// <param name="semanticModel"></param>
         /// <param name="position"></param>
         /// <param name="format"></param>
-        /// <returns></returns>
         public static TypeSyntax ToMinimalTypeSyntax(this INamespaceSymbol namespaceSymbol, SemanticModel semanticModel, int position, SymbolDisplayFormat format = null)
         {
             if (namespaceSymbol == null)
@@ -107,7 +189,7 @@ namespace Roslynator.CSharp
 
             ThrowIfExplicitDeclarationIsNotSupported(namespaceSymbol);
 
-            return ParseTypeName(namespaceSymbol.ToMinimalDisplayString(semanticModel, position, format ?? DefaultSymbolDisplayFormat));
+            return ParseTypeName(namespaceSymbol.ToMinimalDisplayString(semanticModel, position, format ?? SymbolDisplayFormats.FullName));
         }
 
         private static void ThrowIfExplicitDeclarationIsNotSupported(INamespaceSymbol namespaceSymbol)
@@ -184,7 +266,6 @@ namespace Roslynator.CSharp
         /// </summary>
         /// <param name="typeSymbol"></param>
         /// <param name="format"></param>
-        /// <returns></returns>
         public static TypeSyntax ToTypeSyntax(this ITypeSymbol typeSymbol, SymbolDisplayFormat format = null)
         {
             if (typeSymbol == null)
@@ -192,7 +273,7 @@ namespace Roslynator.CSharp
 
             ThrowIfExplicitDeclarationIsNotSupported(typeSymbol);
 
-            return ParseTypeName(typeSymbol.ToDisplayString(format ?? DefaultSymbolDisplayFormat));
+            return ParseTypeName(typeSymbol.ToDisplayString(format ?? SymbolDisplayFormats.FullName));
         }
 
         /// <summary>
@@ -202,7 +283,6 @@ namespace Roslynator.CSharp
         /// <param name="semanticModel"></param>
         /// <param name="position"></param>
         /// <param name="format"></param>
-        /// <returns></returns>
         public static TypeSyntax ToMinimalTypeSyntax(this ITypeSymbol typeSymbol, SemanticModel semanticModel, int position, SymbolDisplayFormat format = null)
         {
             if (typeSymbol == null)
@@ -213,7 +293,7 @@ namespace Roslynator.CSharp
 
             ThrowIfExplicitDeclarationIsNotSupported(typeSymbol);
 
-            return ParseTypeName(typeSymbol.ToMinimalDisplayString(semanticModel, position, format ?? DefaultSymbolDisplayFormat));
+            return ParseTypeName(typeSymbol.ToMinimalDisplayString(semanticModel, position, format ?? SymbolDisplayFormats.FullName));
         }
 
         private static void ThrowIfExplicitDeclarationIsNotSupported(ITypeSymbol typeSymbol)
@@ -226,7 +306,6 @@ namespace Roslynator.CSharp
         /// Returns true if the specified type can be used to declare constant value.
         /// </summary>
         /// <param name="typeSymbol"></param>
-        /// <returns></returns>
         public static bool SupportsConstantValue(this ITypeSymbol typeSymbol)
         {
             if (typeSymbol == null)
@@ -265,10 +344,8 @@ namespace Roslynator.CSharp
 
         internal static bool IsReadOnlyStruct(this ITypeSymbol type)
         {
-            return type.TypeKind == TypeKind.Struct
-                && type
-                    .ToDisplayParts(IsReadOnlyStructSymbolDisplayFormat)
-                    .Any(f => f.Kind == SymbolDisplayPartKind.Keyword && f.ToString() == "readonly");
+            return type.IsReadOnly
+                && type.TypeKind == TypeKind.Struct;
         }
         #endregion ITypeSymbol
     }

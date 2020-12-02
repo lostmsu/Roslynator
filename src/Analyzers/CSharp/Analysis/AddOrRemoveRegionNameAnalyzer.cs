@@ -19,15 +19,12 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
 
-            context.RegisterSyntaxNodeAction(AnalyzeEndRegionDirectiveTrivia, SyntaxKind.EndRegionDirectiveTrivia);
+            context.RegisterSyntaxNodeAction(f => AnalyzeEndRegionDirectiveTrivia(f), SyntaxKind.EndRegionDirectiveTrivia);
         }
 
-        public static void AnalyzeEndRegionDirectiveTrivia(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeEndRegionDirectiveTrivia(SyntaxNodeAnalysisContext context)
         {
             var endRegionDirective = (EndRegionDirectiveTriviaSyntax)context.Node;
 

@@ -19,11 +19,7 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
-            context.EnableConcurrentExecution();
 
             context.RegisterCompilationStartAction(startContext =>
             {
@@ -37,14 +33,14 @@ namespace Roslynator.CSharp.Analysis
             });
         }
 
-        public static void AnalyzeThrowStatement(SyntaxNodeAnalysisContext context, INamedTypeSymbol exceptionSymbol)
+        private static void AnalyzeThrowStatement(SyntaxNodeAnalysisContext context, INamedTypeSymbol exceptionSymbol)
         {
             var throwStatement = (ThrowStatementSyntax)context.Node;
 
             Analyze(context, throwStatement.Expression, exceptionSymbol);
         }
 
-        internal static void AnalyzeThrowExpression(SyntaxNodeAnalysisContext context, INamedTypeSymbol exceptionSymbol)
+        private static void AnalyzeThrowExpression(SyntaxNodeAnalysisContext context, INamedTypeSymbol exceptionSymbol)
         {
             var throwExpression = (ThrowExpressionSyntax)context.Node;
 
@@ -63,10 +59,11 @@ namespace Roslynator.CSharp.Analysis
             if (typeSymbol == null)
                 return;
 
-            if (!typeSymbol.Equals(exceptionSymbol))
+            if (!SymbolEqualityComparer.Default.Equals(typeSymbol, exceptionSymbol))
                 return;
 
-            DiagnosticHelpers.ReportDiagnostic(context,
+            DiagnosticHelpers.ReportDiagnostic(
+                context,
                 DiagnosticDescriptors.ThrowingOfNewNotImplementedException,
                 expression);
         }

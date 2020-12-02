@@ -25,7 +25,6 @@ namespace Roslynator.CSharp.Refactorings
                         ReplacePostIncrementWithPreIncrement(context, postfixUnaryExpression);
                         break;
                     }
-
                 case SyntaxKind.PostDecrementExpression:
                     {
                         InvertPostDecrement(context, postfixUnaryExpression);
@@ -111,7 +110,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             PostfixUnaryExpressionSyntax postIncrement,
             PrefixUnaryExpressionSyntax preIncrement,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(postIncrement, preIncrement, cancellationToken);
         }
@@ -120,7 +119,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             PostfixUnaryExpressionSyntax postIncrement,
             PostfixUnaryExpressionSyntax postDecrement,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(postIncrement, postDecrement, cancellationToken);
         }
@@ -129,7 +128,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             PostfixUnaryExpressionSyntax postDecrement,
             PrefixUnaryExpressionSyntax preDecrement,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(postDecrement, preDecrement, cancellationToken);
         }
@@ -138,7 +137,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             PostfixUnaryExpressionSyntax postDecrement,
             PostfixUnaryExpressionSyntax postIncrement,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return document.ReplaceNodeAsync(postDecrement, postIncrement, cancellationToken);
         }

@@ -11,7 +11,7 @@ namespace Roslynator.CSharp
     /// <summary>
     /// A set of extension methods for enumerations.
     /// </summary>
-    public static class EnumExtensions
+    internal static class EnumExtensions
     {
         /// <summary>
         /// Returns true if the kind is one of the specified kinds.
@@ -19,7 +19,6 @@ namespace Roslynator.CSharp
         /// <param name="kind"></param>
         /// <param name="kind1"></param>
         /// <param name="kind2"></param>
-        /// <returns></returns>
         public static bool Is(this SyntaxKind kind, SyntaxKind kind1, SyntaxKind kind2)
         {
             return kind == kind1
@@ -33,7 +32,6 @@ namespace Roslynator.CSharp
         /// <param name="kind1"></param>
         /// <param name="kind2"></param>
         /// <param name="kind3"></param>
-        /// <returns></returns>
         public static bool Is(this SyntaxKind kind, SyntaxKind kind1, SyntaxKind kind2, SyntaxKind kind3)
         {
             return kind == kind1
@@ -49,7 +47,6 @@ namespace Roslynator.CSharp
         /// <param name="kind2"></param>
         /// <param name="kind3"></param>
         /// <param name="kind4"></param>
-        /// <returns></returns>
         public static bool Is(this SyntaxKind kind, SyntaxKind kind1, SyntaxKind kind2, SyntaxKind kind3, SyntaxKind kind4)
         {
             return kind == kind1
@@ -67,7 +64,6 @@ namespace Roslynator.CSharp
         /// <param name="kind3"></param>
         /// <param name="kind4"></param>
         /// <param name="kind5"></param>
-        /// <returns></returns>
         public static bool Is(this SyntaxKind kind, SyntaxKind kind1, SyntaxKind kind2, SyntaxKind kind3, SyntaxKind kind4, SyntaxKind kind5)
         {
             return kind == kind1

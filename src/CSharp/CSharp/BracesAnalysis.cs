@@ -47,9 +47,9 @@ namespace Roslynator.CSharp
 
         public static BracesAnalysis AnalyzeBraces(IfStatementSyntax ifStatement)
         {
-            bool anyHasEmbedded = false;
-            bool anyHasBlock = false;
-            bool allSupportsEmbedded = true;
+            var anyHasEmbedded = false;
+            var anyHasBlock = false;
+            var allSupportsEmbedded = true;
 
             int cnt = 0;
 
@@ -101,7 +101,7 @@ namespace Roslynator.CSharp
 
             return BracesAnalysisFlags.None;
 
-            bool SupportsEmbedded(StatementSyntax statement)
+            static bool SupportsEmbedded(StatementSyntax statement)
             {
                 if (statement.IsParentKind(SyntaxKind.IfStatement)
                     && ((IfStatementSyntax)statement.Parent).Condition?.IsMultiLine() == true)

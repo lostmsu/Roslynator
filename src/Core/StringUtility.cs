@@ -141,25 +141,6 @@ namespace Roslynator
             return StringBuilderCache.GetStringAndFree(sb);
         }
 
-        public static bool IsCamelCasePrefixedWithUnderscore(string value)
-        {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            if (value[0] == '_')
-            {
-                if (value.Length > 1)
-                {
-                    return value[1] != '_'
-                        && !char.IsUpper(value[1]);
-                }
-
-                return true;
-            }
-
-            return false;
-        }
-
         public static bool HasPrefix(string value, string prefix, StringComparison comparison = StringComparison.Ordinal)
         {
             if (value == null)
@@ -299,6 +280,61 @@ namespace Roslynator
             return char.IsDigit(ch)
                 || (ch >= 'a' && ch <= 'f')
                 || (ch >= 'A' && ch <= 'F');
+        }
+
+        public static string ReplaceDoubleBracesWithSingleBrace(string s)
+        {
+            int i = 0;
+
+            if (!FindNextIndex())
+                return s;
+
+            var sb = new StringBuilder(s.Length);
+
+            int prevIndex = 0;
+
+            while (true)
+            {
+                sb.Append(s, prevIndex, i - prevIndex);
+                sb.Append(s[i]);
+                i++;
+                i++;
+
+                prevIndex = i;
+
+                if (!FindNextIndex())
+                {
+                    sb.Append(s, prevIndex, s.Length - prevIndex);
+                    return sb.ToString();
+                }
+            }
+
+            bool FindNextIndex()
+            {
+                while (i < s.Length)
+                {
+                    if (s[i] == '{')
+                    {
+                        if (i < s.Length - 1
+                            && s[i + 1] == '{')
+                        {
+                            return true;
+                        }
+                    }
+                    else if (s[i] == '}')
+                    {
+                        if (i < s.Length - 1
+                            && s[i + 1] == '}')
+                        {
+                            return true;
+                        }
+                    }
+
+                    i++;
+                }
+
+                return false;
+            }
         }
     }
 }

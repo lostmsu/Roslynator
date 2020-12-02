@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -54,7 +55,7 @@ namespace Roslynator.CSharp.Analysis
                 }
             }
 
-            if (!_symbol.Equals(_semanticModel.GetSymbol(node, _cancellationToken)))
+            if (!SymbolEqualityComparer.Default.Equals(_symbol, _semanticModel.GetSymbol(node, _cancellationToken)))
                 return;
 
             if (!node.IsParentKind(SyntaxKind.SimpleMemberAccessExpression))
@@ -92,6 +93,11 @@ namespace Roslynator.CSharp.Analysis
 
             if (walker != null)
             {
+                Debug.Assert(walker._symbol == null);
+                Debug.Assert(walker._variableDeclarator == null);
+                Debug.Assert(walker._semanticModel == null);
+                Debug.Assert(walker._cancellationToken == default);
+
                 _cachedInstance = null;
                 return walker;
             }
@@ -101,6 +107,8 @@ namespace Roslynator.CSharp.Analysis
 
         public static void Free(UnnecessaryUsageOfEnumeratorWalker walker)
         {
+            walker.SetValues(default(VariableDeclaratorSyntax), default(SemanticModel), default(CancellationToken));
+
             _cachedInstance = walker;
         }
     }

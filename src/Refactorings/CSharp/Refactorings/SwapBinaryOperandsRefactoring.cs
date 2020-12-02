@@ -20,7 +20,14 @@ namespace Roslynator.CSharp.Refactorings
             {
                 context.RegisterRefactoring(
                     "Swap operands",
-                    cancellationToken => DocumentRefactorings.SwapBinaryOperandsAsync(context.Document, binaryExpression, cancellationToken),
+                    cancellationToken =>
+                    {
+                        BinaryExpressionSyntax newBinaryExpression = SyntaxRefactorings.SwapBinaryOperands(binaryExpression);
+
+                        newBinaryExpression = newBinaryExpression.WithOperatorToken(newBinaryExpression.OperatorToken.WithNavigationAnnotation());
+
+                        return context.Document.ReplaceNodeAsync(binaryExpression, newBinaryExpression, cancellationToken);
+                    },
                     RefactoringIdentifiers.SwapBinaryOperands);
             }
 
@@ -32,6 +39,9 @@ namespace Roslynator.CSharp.Refactorings
                 {
                     case SyntaxKind.LogicalAndExpression:
                     case SyntaxKind.LogicalOrExpression:
+                    case SyntaxKind.BitwiseAndExpression:
+                    case SyntaxKind.BitwiseOrExpression:
+                    case SyntaxKind.ExclusiveOrExpression:
                     case SyntaxKind.AddExpression:
                     case SyntaxKind.MultiplyExpression:
                         {

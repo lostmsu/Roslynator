@@ -17,7 +17,7 @@ namespace Roslynator
             AnalyzerAssemblyList analyzerReferences,
             CodeAnalysisOptions options)
         {
-            (ImmutableArray<DiagnosticAnalyzer> analyzers, ImmutableArray<CodeFixProvider> fixers) = GetAnalyzersAndFixers(
+            (ImmutableArray<DiagnosticAnalyzer> analyzers, ImmutableArray<CodeFixProvider> _) = GetAnalyzersAndFixers(
                 project: project,
                 analyzerAssemblies: analyzerAssemblies,
                 analyzerReferences: analyzerReferences,
@@ -71,7 +71,7 @@ namespace Roslynator
 
                     if (options.SupportedDiagnosticIds.Count > 0)
                     {
-                        bool success = false;
+                        var success = false;
 
                         foreach (DiagnosticDescriptor supportedDiagnostic in supportedDiagnostics)
                         {
@@ -87,7 +87,7 @@ namespace Roslynator
                     }
                     else if (options.IgnoredDiagnosticIds.Count > 0)
                     {
-                        bool success = false;
+                        var success = false;
 
                         foreach (DiagnosticDescriptor supportedDiagnostic in supportedDiagnostics)
                         {
@@ -104,10 +104,7 @@ namespace Roslynator
 
                     foreach (DiagnosticDescriptor supportedDiagnostic in supportedDiagnostics)
                     {
-                        ReportDiagnostic reportDiagnostic = supportedDiagnostic.GetEffectiveSeverity(project.CompilationOptions);
-
-                        if (reportDiagnostic != ReportDiagnostic.Suppress
-                            && reportDiagnostic.ToDiagnosticSeverity() >= options.SeverityLevel)
+                        if (options.GetEffectiveSeverity(supportedDiagnostic, project.CompilationOptions) != ReportDiagnostic.Suppress)
                         {
                             return true;
                         }

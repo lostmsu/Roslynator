@@ -84,52 +84,55 @@ namespace Roslynator.CSharp.CodeFixes
 
             SyntaxNode root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
 
-            SyntaxNode newRoot = root.ReplaceNodes(nodes, (node, _) =>
-        {
-            switch (node.Kind())
-            {
-                case SyntaxKind.IdentifierName:
+            SyntaxNode newRoot = root.ReplaceNodes(
+                nodes,
+                (node, _) =>
+                {
+                    switch (node.Kind())
                     {
-                        SyntaxNode newNode = null;
+                        case SyntaxKind.IdentifierName:
+                            {
+                                SyntaxNode newNode = null;
 
-                        if (node.IsParentKind(SyntaxKind.SimpleMemberAccessExpression)
-                        && ((MemberAccessExpressionSyntax)node.Parent).Name == node)
-                        {
-                            newNode = IdentifierName(propertyIdentifier);
-                        }
-                        else if (node.IsParentKind(SyntaxKind.NameMemberCref))
-                        {
-                            newNode = IdentifierName(propertyIdentifier);
-                        }
-                        else if (propertySymbol.IsStatic)
-                        {
-                            newNode = SimpleMemberAccessExpression(
-                                propertySymbol.ContainingType.ToTypeSyntax(),
-                                (SimpleNameSyntax)ParseName(propertySymbol.ToDisplayString(SymbolDisplayFormats.Default))).WithSimplifierAnnotation();
-                        }
-                        else
-                        {
-                            newNode = IdentifierName(propertyIdentifier).QualifyWithThis();
-                        }
+                                if (node.IsParentKind(SyntaxKind.SimpleMemberAccessExpression)
+                                    && ((MemberAccessExpressionSyntax)node.Parent).Name == node)
+                                {
+                                    newNode = IdentifierName(propertyIdentifier);
+                                }
+                                else if (node.IsParentKind(SyntaxKind.NameMemberCref))
+                                {
+                                    newNode = IdentifierName(propertyIdentifier);
+                                }
+                                else if (propertySymbol.IsStatic)
+                                {
+                                    newNode = SimpleMemberAccessExpression(
+                                        propertySymbol.ContainingType.ToTypeSyntax(),
+                                        (SimpleNameSyntax)ParseName(propertySymbol.ToDisplayString(SymbolDisplayFormats.DisplayName)))
+                                        .WithSimplifierAnnotation();
+                                }
+                                else
+                                {
+                                    newNode = IdentifierName(propertyIdentifier).QualifyWithThis();
+                                }
 
-                        return newNode.WithTriviaFrom(node);
+                                return newNode.WithTriviaFrom(node);
+                            }
+                        case SyntaxKind.PropertyDeclaration:
+                            {
+                                return CreateAutoProperty(propertyDeclaration, variableDeclarator.Initializer);
+                            }
+                        case SyntaxKind.VariableDeclarator:
+                        case SyntaxKind.FieldDeclaration:
+                            {
+                                return node.WithAdditionalAnnotations(_removeAnnotation);
+                            }
+                        default:
+                            {
+                                Debug.Fail(node.ToString());
+                                return node;
+                            }
                     }
-                case SyntaxKind.PropertyDeclaration:
-                    {
-                        return CreateAutoProperty(propertyDeclaration, variableDeclarator.Initializer);
-                    }
-                case SyntaxKind.VariableDeclarator:
-                case SyntaxKind.FieldDeclaration:
-                    {
-                        return node.WithAdditionalAnnotations(_removeAnnotation);
-                    }
-                default:
-                    {
-                        Debug.Fail(node.ToString());
-                        return node;
-                    }
-            }
-        });
+                });
 
             SyntaxNode nodeToRemove = newRoot.GetAnnotatedNodes(_removeAnnotation).FirstOrDefault();
 
@@ -196,7 +199,7 @@ namespace Roslynator.CSharp.CodeFixes
                     .WithTriviaFrom(property.ExpressionBody);
             }
 
-            if (accessorList.Accessors.All(f => f.AttributeLists.Count == 0)
+            if (accessorList.Accessors.All(f => !f.AttributeLists.Any())
                 && accessorList.DescendantTrivia().All(f => f.IsWhitespaceOrEndOfLineTrivia()))
             {
                 accessorList = accessorList.RemoveWhitespace();
@@ -211,7 +214,7 @@ namespace Roslynator.CSharp.CodeFixes
                 accessorList: accessorList,
                 expressionBody: default(ArrowExpressionClauseSyntax),
                 initializer: initializer,
-                semicolonToken: (initializer != null) ? SemicolonToken() : default(SyntaxToken));
+                semicolonToken: (initializer != null) ? SemicolonToken() : default);
 
             return newProperty
                 .WithTriviaFrom(property)

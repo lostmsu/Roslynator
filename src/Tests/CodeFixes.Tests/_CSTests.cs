@@ -2,23 +2,16 @@
 
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Roslynator.Tests;
+using Roslynator.Testing;
 using Xunit;
 
 namespace Roslynator.CSharp.CodeFixes.Tests
 {
     public class CSTests : AbstractCSharpCompilerDiagnosticFixVerifier
     {
-        public CSTests()
-        {
-            Options = base.Options;
-        }
-
         public override string DiagnosticId { get; } = CompilerDiagnosticIdentifiers.OperatorCannotBeAppliedToOperands;
 
         public override CodeFixProvider FixProvider { get; }
-
-        public override CodeVerificationOptions Options { get; }
 
         //[Fact, Trait(Traits.CodeFix, CompilerDiagnosticIdentifiers.OperatorCannotBeAppliedToOperands)]
         public async Task Test()
@@ -41,7 +34,7 @@ class C
 
         //[Theory, Trait(Traits.CodeFix, CompilerDiagnosticIdentifiers.OperatorCannotBeAppliedToOperands)]
         //[InlineData("", "")]
-        public async Task Test(string fromData, string toData)
+        public async Task Test(string source, string expected)
         {
             await VerifyFixAsync(@"
 using System;
@@ -55,7 +48,7 @@ class C
     {
     }
 }
-", fromData, toData, equivalenceKey: EquivalenceKey.Create(DiagnosticId));
+", source, expected, equivalenceKey: EquivalenceKey.Create(DiagnosticId));
         }
 
         //[Fact, Trait(Traits.CodeFix, CompilerDiagnosticIdentifiers.OperatorCannotBeAppliedToOperands)]

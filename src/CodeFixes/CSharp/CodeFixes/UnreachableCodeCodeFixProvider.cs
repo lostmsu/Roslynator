@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
@@ -28,7 +29,9 @@ namespace Roslynator.CSharp.CodeFixes
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
         {
-            if (!Settings.IsEnabled(CodeFixIdentifiers.RemoveUnreachableCode))
+            Diagnostic diagnostic = context.Diagnostics[0];
+
+            if (!Settings.IsEnabled(diagnostic.Id, CodeFixIdentifiers.RemoveUnreachableCode))
                 return;
 
             SyntaxNode root = await context.GetSyntaxRootAsync().ConfigureAwait(false);
@@ -36,61 +39,49 @@ namespace Roslynator.CSharp.CodeFixes
             if (!TryFindFirstAncestorOrSelf(root, context.Span, out StatementSyntax statement))
                 return;
 
-            foreach (Diagnostic diagnostic in context.Diagnostics)
+            Debug.Assert(context.Span.Start == statement.SpanStart, statement.ToString());
+
+            if (context.Span.Start != statement.SpanStart)
+                return;
+
+            CodeAction codeAction = CreateCodeActionForIfElse(context.Document, diagnostic, statement.Parent);
+
+            if (codeAction != null)
             {
-                switch (diagnostic.Id)
-                {
-                    case CompilerDiagnosticIdentifiers.UnreachableCodeDetected:
+                context.RegisterCodeFix(codeAction, diagnostic);
+                return;
+            }
+
+            StatementListInfo statementsInfo = SyntaxInfo.StatementListInfo(statement);
+            if (statementsInfo.Success)
+            {
+                codeAction = CodeAction.Create(
+                    Title,
+                    cancellationToken =>
+                    {
+                        SyntaxList<StatementSyntax> statements = statementsInfo.Statements;
+
+                        int index = statements.IndexOf(statement);
+
+                        if (index == statements.Count - 1)
                         {
-                            Debug.Assert(context.Span.Start == statement.SpanStart, statement.ToString());
-
-                            if (context.Span.Start != statement.SpanStart)
-                                break;
-
-                            CodeAction codeAction = CreateCodeActionForIfElse(context.Document, diagnostic, statement.Parent);
-
-                            if (codeAction != null)
-                            {
-                                context.RegisterCodeFix(codeAction, diagnostic);
-                                break;
-                            }
-
-                            StatementListInfo statementsInfo = SyntaxInfo.StatementListInfo(statement);
-                            if (statementsInfo.Success)
-                            {
-                                codeAction = CodeAction.Create(
-                                    Title,
-                                    cancellationToken =>
-                                    {
-                                        SyntaxList<StatementSyntax> statements = statementsInfo.Statements;
-
-                                        int index = statements.IndexOf(statement);
-
-                                        if (index == statements.Count - 1)
-                                        {
-                                            return context.Document.RemoveStatementAsync(statement, cancellationToken);
-                                        }
-                                        else
-                                        {
-                                            SyntaxRemoveOptions removeOptions = SyntaxRefactorings.DefaultRemoveOptions;
-
-                                            if (statement.GetLeadingTrivia().IsEmptyOrWhitespace())
-                                                removeOptions &= ~SyntaxRemoveOptions.KeepLeadingTrivia;
-
-                                            if (statements.Last().GetTrailingTrivia().IsEmptyOrWhitespace())
-                                                removeOptions &= ~SyntaxRemoveOptions.KeepTrailingTrivia;
-
-                                            return context.Document.RemoveNodesAsync(statements.Skip(index), removeOptions, cancellationToken);
-                                        }
-                                    },
-                                    GetEquivalenceKey(diagnostic));
-
-                                context.RegisterCodeFix(codeAction, diagnostic);
-                            }
-
-                            break;
+                            return context.Document.RemoveStatementAsync(statement, cancellationToken);
                         }
-                }
+                        else
+                        {
+                            int lastIndex = statements.LastIndexOf(f => !f.IsKind(SyntaxKind.LocalFunctionStatement));
+
+                            SyntaxList<StatementSyntax> nodes = RemoveRange(statements, index, lastIndex - index + 1, f => !f.IsKind(SyntaxKind.LocalFunctionStatement));
+
+                            return context.Document.ReplaceStatementsAsync(
+                                statementsInfo,
+                                nodes,
+                                cancellationToken);
+                        }
+                    },
+                    base.GetEquivalenceKey(diagnostic));
+
+                context.RegisterCodeFix(codeAction, diagnostic);
             }
         }
 
@@ -102,14 +93,23 @@ namespace Roslynator.CSharp.CodeFixes
                     {
                         var ifStatement = (IfStatementSyntax)node;
 
-                        StatementSyntax statement = ifStatement.Else?.Statement;
+                        ElseClauseSyntax elseClause = ifStatement.Else;
+
+                        if (elseClause != null
+                            && ifStatement.IsParentKind(SyntaxKind.ElseClause))
+                        {
+                            return CodeAction.Create(
+                                Title,
+                                cz => document.ReplaceNodeAsync(ifStatement.Parent, elseClause, cz),
+                                GetEquivalenceKey(diagnostic));
+                        }
+
+                        StatementSyntax statement = elseClause?.Statement;
 
                         if (statement != null)
                         {
-                            if (statement.IsKind(SyntaxKind.Block))
+                            if (statement is BlockSyntax block)
                             {
-                                var block = (BlockSyntax)statement;
-
                                 SyntaxList<StatementSyntax> statements = block.Statements;
 
                                 if (statements.Any())
@@ -142,10 +142,8 @@ namespace Roslynator.CSharp.CodeFixes
 
                                 if (statement != null)
                                 {
-                                    if (statement.IsKind(SyntaxKind.Block))
+                                    if (statement is BlockSyntax block)
                                     {
-                                        var block = (BlockSyntax)statement;
-
                                         SyntaxList<StatementSyntax> statements = block.Statements;
 
                                         if (statements.Any())
@@ -179,7 +177,7 @@ namespace Roslynator.CSharp.CodeFixes
                 Title,
                 cancellationToken =>
                 {
-                    StatementSyntax firstStatement = statements.First();
+                    StatementSyntax firstStatement = statements[0];
 
                     StatementSyntax newFirstStatement = firstStatement
                         .WithLeadingTrivia(ifStatement.GetLeadingTrivia().AddRange(firstStatement.GetLeadingTrivia().EmptyIfWhitespace()));
@@ -211,6 +209,44 @@ namespace Roslynator.CSharp.CodeFixes
                     return document.ReplaceNodeAsync(ifStatement, newNode, cancellationToken);
                 },
                 GetEquivalenceKey(diagnostic));
+        }
+
+        //TODO: move to API
+        private SyntaxList<TNode> RemoveRange<TNode>(
+            SyntaxList<TNode> list,
+            int index,
+            int count,
+            Func<TNode, bool> predicate) where TNode : SyntaxNode
+        {
+            return SyntaxFactory.List(RemoveRange());
+
+            IEnumerable<TNode> RemoveRange()
+            {
+                SyntaxList<TNode>.Enumerator en = list.GetEnumerator();
+
+                int i = 0;
+
+                while (i < index
+                    && en.MoveNext())
+                {
+                    yield return en.Current;
+                    i++;
+                }
+
+                int endIndex = index + count;
+
+                while (i < endIndex
+                    && en.MoveNext())
+                {
+                    if (!predicate(en.Current))
+                        yield return en.Current;
+
+                    i++;
+                }
+
+                while (en.MoveNext())
+                    yield return en.Current;
+            }
         }
     }
 }

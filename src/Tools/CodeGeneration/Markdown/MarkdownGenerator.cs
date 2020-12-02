@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Josef Pihrt. All rights reserved. Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,7 +20,7 @@ namespace Roslynator.CodeGeneration.Markdown
             document.Add(NewLine, Italic("(Generated with ", Link("DotMarkdown", "http://github.com/JosefPihrt/DotMarkdown"), ")"));
         }
 
-        public static string CreateReadMe(IEnumerable<AnalyzerDescriptor> analyzers, IEnumerable<RefactoringDescriptor> refactorings, IComparer<string> comparer)
+        public static string CreateReadMe(IEnumerable<AnalyzerMetadata> analyzers, IEnumerable<RefactoringMetadata> refactorings, IComparer<string> comparer)
         {
             MDocument document = Document(
                 Heading3("List of Analyzers"),
@@ -38,7 +39,7 @@ namespace Roslynator.CodeGeneration.Markdown
                 + document;
         }
 
-        public static string CreateRefactoringsMarkdown(IEnumerable<RefactoringDescriptor> refactorings, IComparer<string> comparer)
+        public static string CreateRefactoringsMarkdown(IEnumerable<RefactoringMetadata> refactorings, IComparer<string> comparer)
         {
             MDocument document = Document(
                 Heading2("Roslynator Refactorings"),
@@ -50,7 +51,7 @@ namespace Roslynator.CodeGeneration.Markdown
 
             IEnumerable<object> GetRefactorings()
             {
-                foreach (RefactoringDescriptor refactoring in refactorings.OrderBy(f => f.Title, comparer))
+                foreach (RefactoringMetadata refactoring in refactorings.OrderBy(f => f.Title, comparer))
                 {
                     yield return Heading4($"{refactoring.Title} ({refactoring.Id})");
                     yield return BulletItem(Bold("Syntax"), ": ", string.Join(", ", refactoring.Syntaxes.Select(f => f.Name)));
@@ -64,7 +65,7 @@ namespace Roslynator.CodeGeneration.Markdown
             }
         }
 
-        private static IEnumerable<object> GetRefactoringSamples(RefactoringDescriptor refactoring)
+        private static IEnumerable<object> GetRefactoringSamples(RefactoringMetadata refactoring)
         {
             if (refactoring.Samples.Count > 0)
             {
@@ -73,9 +74,9 @@ namespace Roslynator.CodeGeneration.Markdown
             }
             else if (refactoring.Images.Count > 0)
             {
-                bool isFirst = true;
+                var isFirst = true;
 
-                foreach (ImageDescriptor image in refactoring.Images)
+                foreach (ImageMetadata image in refactoring.Images)
                 {
                     if (!isFirst)
                         yield return NewLine;
@@ -96,33 +97,57 @@ namespace Roslynator.CodeGeneration.Markdown
             }
         }
 
-        private static IEnumerable<MElement> GetSamples(IEnumerable<SampleDescriptor> samples, MHeading beforeHeader, MHeading afterHeader)
+        private static IEnumerable<MElement> GetSamples(
+            IEnumerable<SampleMetadata> samples,
+            MHeading beforeHeading,
+            MHeading afterHeading)
         {
-            bool isFirst = true;
-
-            foreach (SampleDescriptor sample in samples)
+            using (IEnumerator<SampleMetadata> en = samples.GetEnumerator())
             {
-                if (!isFirst)
+                if (en.MoveNext())
                 {
-                    yield return HorizontalRule();
-                }
-                else
-                {
-                    isFirst = false;
-                }
+                    while (true)
+                    {
+                        yield return beforeHeading;
+                        yield return FencedCodeBlock(en.Current.Before, LanguageIdentifiers.CSharp);
 
-                yield return beforeHeader;
-                yield return FencedCodeBlock(sample.Before, LanguageIdentifiers.CSharp);
+                        if (!string.IsNullOrEmpty(en.Current.After))
+                        {
+                            yield return afterHeading;
+                            yield return FencedCodeBlock(en.Current.After, LanguageIdentifiers.CSharp);
+                        }
 
-                if (!string.IsNullOrEmpty(sample.After))
-                {
-                    yield return afterHeader;
-                    yield return FencedCodeBlock(sample.After, LanguageIdentifiers.CSharp);
+                        if (en.MoveNext())
+                        {
+                            yield return HorizontalRule();
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
                 }
             }
         }
 
-        private static MElement CreateLink(in LinkDescriptor link)
+        private static IEnumerable<MElement> GetAnalyzerSamples(AnalyzerMetadata analyzer)
+        {
+            IReadOnlyList<SampleMetadata> samples = analyzer.Samples;
+
+            if (samples.Count > 0)
+            {
+                yield return Heading2((samples.Count == 1) ? "Example" : "Examples");
+
+                string beforeHeading = (analyzer.Kind == AnalyzerOptionKind.Disable)
+                    ? "Code"
+                    : "Code with Diagnostic";
+
+                foreach (MElement item in GetSamples(samples, Heading3(beforeHeading), Heading3("Code with Fix")))
+                    yield return item;
+            }
+        }
+
+        private static MElement CreateLink(in LinkMetadata link)
         {
             if (string.IsNullOrEmpty(link.Text))
             {
@@ -134,13 +159,14 @@ namespace Roslynator.CodeGeneration.Markdown
             }
         }
 
-        public static string CreateRefactoringMarkdown(RefactoringDescriptor refactoring, IEnumerable<string> filePaths)
+        public static string CreateRefactoringMarkdown(RefactoringMetadata refactoring)
         {
             var format = new MarkdownFormat(tableOptions: MarkdownFormat.Default.TableOptions | TableOptions.FormatContent);
 
             MDocument document = Document(
                 Heading2(refactoring.Title),
-                Table(TableRow("Property", "Value"),
+                Table(
+                    TableRow("Property", "Value"),
                     TableRow("Id", refactoring.Id),
                     TableRow("Title", refactoring.Title),
                     TableRow("Syntax", string.Join(", ", refactoring.Syntaxes.Select(f => f.Name))),
@@ -150,7 +176,6 @@ namespace Roslynator.CodeGeneration.Markdown
                 Heading3("Usage"),
                 GetRefactoringSamples(refactoring),
                 CreateRemarks(refactoring.Remarks),
-                CreateSourceFiles(filePaths),
                 CreateSeeAlso(refactoring.Links.Select(f => CreateLink(f)), Link("Full list of refactorings", "Refactorings.md")));
 
             document.AddFootnote();
@@ -158,7 +183,7 @@ namespace Roslynator.CodeGeneration.Markdown
             return document.ToString(format);
         }
 
-        public static string CreateAnalyzerMarkdown(AnalyzerDescriptor analyzer, IEnumerable<string> filePaths)
+        public static string CreateAnalyzerMarkdown(AnalyzerMetadata analyzer, IEnumerable<(string title, string url)> appliesTo = null)
         {
             var format = new MarkdownFormat(tableOptions: MarkdownFormat.Default.TableOptions | TableOptions.FormatContent);
 
@@ -168,30 +193,50 @@ namespace Roslynator.CodeGeneration.Markdown
                     TableRow("Property", "Value"),
                     TableRow("Id", analyzer.Id),
                     TableRow("Category", analyzer.Category),
-                    TableRow("Severity", (analyzer.IsEnabledByDefault) ? analyzer.DefaultSeverity : "None")),
-                CreateSummary(analyzer.Summary),
-                Samples(),
+                    TableRow("Severity", (analyzer.IsEnabledByDefault) ? analyzer.DefaultSeverity : "None"),
+                    (!string.IsNullOrEmpty(analyzer.MinLanguageVersion)) ? TableRow("Minimal Language Version", analyzer.MinLanguageVersion) : null),
+                CreateSummary(),
+                GetAnalyzerSamples(analyzer),
+                CreateOptions(analyzer),
                 CreateRemarks(analyzer.Remarks),
-                CreateSourceFiles(filePaths),
+                CreateAppliesTo(appliesTo),
                 CreateSeeAlso(
                     analyzer.Links.Select(f => CreateLink(f)),
+                    (analyzer.Options.Count > 0 || analyzer.Kind != AnalyzerOptionKind.None)
+                        ? Link("Analyzer Options", "../AnalyzerOptions.md")
+                        : null,
                     Link("How to Suppress a Diagnostic", "../HowToConfigureAnalyzers.md#how-to-suppress-a-diagnostic")));
 
             document.AddFootnote();
 
             return document.ToString(format);
 
-            IEnumerable<MElement> Samples()
+            IEnumerable<MElement> CreateSummary()
             {
-                IReadOnlyList<SampleDescriptor> samples = analyzer.Samples;
-
-                if (samples.Count > 0)
+                if (string.IsNullOrEmpty(analyzer.Summary)
+                    && analyzer.Parent != null)
                 {
-                    yield return Heading2((samples.Count == 1) ? "Example" : "Examples");
-
-                    foreach (MElement item in GetSamples(samples, Heading3("Code with Diagnostic"), Heading3("Code with Fix")))
-                        yield return item;
+                    yield return Inline(
+                        "This option modifies behavior of analyzer ",
+                        Link(analyzer.Parent.Id, analyzer.Parent.Id + ".md"),
+                        ". It requires ",
+                        Link(analyzer.Parent.Id, analyzer.Parent.Id + ".md"),
+                        " to be enabled.");
                 }
+                else
+                {
+                    foreach (MElement element in MarkdownGenerator.CreateSummary(analyzer.Summary))
+                        yield return element;
+                }
+            }
+        }
+
+        private static IEnumerable<MElement> CreateAppliesTo(IEnumerable<(string title, string url)> appliesTo)
+        {
+            if (appliesTo != null)
+            {
+                yield return Heading2("Applies to");
+                yield return BulletList(appliesTo.Select(f => LinkOrText(f.title, f.url)));
             }
         }
 
@@ -201,28 +246,7 @@ namespace Roslynator.CodeGeneration.Markdown
             yield return BulletList(content);
         }
 
-        private static IEnumerable<object> CreateSourceFiles(IEnumerable<string> filePaths)
-        {
-            using (IEnumerator<string> en = filePaths.GetEnumerator())
-            {
-                if (en.MoveNext())
-                {
-                    yield return Heading2("Related Source Files");
-
-                    do
-                    {
-                        string title = Path.GetFileName(en.Current);
-
-                        string url = "../../src" + en.Current.Replace(@"\", "/");
-
-                        yield return BulletItem(Link(title, url));
-                    }
-                    while (en.MoveNext());
-                }
-            }
-        }
-
-        public static string CreateCompilerDiagnosticMarkdown(CompilerDiagnosticDescriptor diagnostic, IEnumerable<CodeFixDescriptor> codeFixes, IComparer<string> comparer, IEnumerable<string> filePaths)
+        public static string CreateCompilerDiagnosticMarkdown(CompilerDiagnosticMetadata diagnostic, IEnumerable<CodeFixMetadata> codeFixes, IComparer<string> comparer)
         {
             MDocument document = Document(
                 Heading1(diagnostic.Id),
@@ -236,18 +260,17 @@ namespace Roslynator.CodeGeneration.Markdown
                 BulletList(codeFixes
                     .Where(f => f.FixableDiagnosticIds.Any(diagnosticId => diagnosticId == diagnostic.Id))
                     .Select(f => f.Title)
-                    .OrderBy(f => f, comparer)),
-                CreateSourceFiles(filePaths));
+                    .OrderBy(f => f, comparer)));
 
             document.AddFootnote();
 
             return document.ToString(MarkdownFormat.Default.WithTableOptions(MarkdownFormat.Default.TableOptions | TableOptions.FormatContent));
         }
 
-        public static string CreateAnalyzersReadMe(IEnumerable<AnalyzerDescriptor> analyzers, IComparer<string> comparer)
+        public static string CreateAnalyzersReadMe(IEnumerable<AnalyzerMetadata> analyzers, string title, IComparer<string> comparer)
         {
             MDocument document = Document(
-                Heading2("Roslynator Analyzers"),
+                Heading2(title),
                 Link("Search Analyzers", "http://pihrt.net/Roslynator/Analyzers"),
                 Table(
                     TableRow("Id", "Title", "Category", "Severity"),
@@ -265,7 +288,7 @@ namespace Roslynator.CodeGeneration.Markdown
             return document.ToString();
         }
 
-        public static string CreateRefactoringsReadMe(IEnumerable<RefactoringDescriptor> refactorings, IComparer<string> comparer)
+        public static string CreateRefactoringsReadMe(IEnumerable<RefactoringMetadata> refactorings, IComparer<string> comparer)
         {
             MDocument document = Document(
                 Heading2("Roslynator Refactorings"),
@@ -275,9 +298,9 @@ namespace Roslynator.CodeGeneration.Markdown
                     refactorings.OrderBy(f => f.Title, comparer).Select(f =>
                     {
                         return TableRow(
-                        f.Id,
-                        Link(f.Title.TrimEnd('.'), $"../../docs/refactorings/{f.Id}.md"),
-                        CheckboxOrHyphen(f.IsEnabledByDefault));
+                            f.Id,
+                            Link(f.Title.TrimEnd('.'), $"../../docs/refactorings/{f.Id}.md"),
+                            CheckboxOrHyphen(f.IsEnabledByDefault));
                     })));
 
             document.AddFootnote();
@@ -285,7 +308,7 @@ namespace Roslynator.CodeGeneration.Markdown
             return document.ToString();
         }
 
-        public static string CreateCodeFixesReadMe(IEnumerable<CompilerDiagnosticDescriptor> diagnostics, IComparer<string> comparer)
+        public static string CreateCodeFixesReadMe(IEnumerable<CompilerDiagnosticMetadata> diagnostics, IComparer<string> comparer)
         {
             MDocument document = Document(
                 Heading2("Compiler Diagnostics Fixable with Roslynator"),
@@ -299,7 +322,7 @@ namespace Roslynator.CodeGeneration.Markdown
 
             IEnumerable<MTableRow> GetRows()
             {
-                foreach (CompilerDiagnosticDescriptor diagnostic in diagnostics
+                foreach (CompilerDiagnosticMetadata diagnostic in diagnostics
                     .OrderBy(f => f.Id, comparer))
                 {
                     yield return TableRow(
@@ -309,7 +332,7 @@ namespace Roslynator.CodeGeneration.Markdown
             }
         }
 
-        public static string CreateAnalyzersByCategoryMarkdown(IEnumerable<AnalyzerDescriptor> analyzers, IComparer<string> comparer)
+        public static string CreateAnalyzersByCategoryMarkdown(IEnumerable<AnalyzerMetadata> analyzers, IComparer<string> comparer)
         {
             MDocument document = Document(
                 Heading2("Roslynator Analyzers by Category"),
@@ -323,11 +346,11 @@ namespace Roslynator.CodeGeneration.Markdown
 
             IEnumerable<MTableRow> GetRows()
             {
-                foreach (IGrouping<string, AnalyzerDescriptor> grouping in analyzers
+                foreach (IGrouping<string, AnalyzerMetadata> grouping in analyzers
                     .GroupBy(f => MarkdownEscaper.Escape(f.Category))
                     .OrderBy(f => f.Key, comparer))
                 {
-                    foreach (AnalyzerDescriptor analyzer in grouping.OrderBy(f => f.Title, comparer))
+                    foreach (AnalyzerMetadata analyzer in grouping.OrderBy(f => f.Title, comparer))
                     {
                         yield return TableRow(
                             grouping.Key,
@@ -348,6 +371,25 @@ namespace Roslynator.CodeGeneration.Markdown
             }
         }
 
+        private static IEnumerable<MElement> CreateOptions(AnalyzerMetadata analyzer)
+        {
+            using (IEnumerator<AnalyzerMetadata> en = analyzer.OptionAnalyzers.GetEnumerator())
+            {
+                if (en.MoveNext())
+                {
+                    yield return Heading2("Options");
+
+                    do
+                    {
+                        string id = en.Current.Id;
+
+                        yield return BulletItem(Link(id, $"{id}.md"), " - ", en.Current.Title);
+
+                    } while (en.MoveNext());
+                }
+            }
+        }
+
         private static IEnumerable<MElement> CreateRemarks(string remarks)
         {
             if (!string.IsNullOrEmpty(remarks))
@@ -357,7 +399,7 @@ namespace Roslynator.CodeGeneration.Markdown
             }
         }
 
-        private static MImage RefactoringImage(RefactoringDescriptor refactoring, string fileName)
+        private static MImage RefactoringImage(RefactoringMetadata refactoring, string fileName)
         {
             return Image(refactoring.Title, $"../../images/refactorings/{fileName}.png");
         }

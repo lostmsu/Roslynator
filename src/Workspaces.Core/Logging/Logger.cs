@@ -16,6 +16,15 @@ namespace Roslynator
             Out?.Write(value);
         }
 
+        public static void Write(char value, int repeatCount, Verbosity verbosity)
+        {
+            for (int i = 0; i < repeatCount; i++)
+            {
+                ConsoleOut.Write(value, verbosity);
+                Out?.Write(value, verbosity);
+            }
+        }
+
         public static void Write(char[] buffer)
         {
             ConsoleOut.Write(buffer);
@@ -250,6 +259,12 @@ namespace Roslynator
             Out?.WriteLine(value, verbosity: verbosity);
         }
 
+        public static void WriteLine(LogMessage message)
+        {
+            ConsoleOut.WriteLine(message);
+            Out?.WriteLine(message);
+        }
+
         public static void WriteLineIf(bool condition, string value)
         {
             ConsoleOut.WriteLineIf(condition, value);
@@ -290,6 +305,17 @@ namespace Roslynator
         {
             ConsoleOut.WriteLine(format, arg);
             Out?.WriteLine(format, arg);
+        }
+
+        public static void WriteError(
+            Exception exception,
+            ConsoleColor color = ConsoleColor.Red,
+            Verbosity verbosity = Verbosity.Quiet)
+        {
+            WriteLine(exception.Message, color, verbosity);
+#if DEBUG
+            WriteLine(exception.ToString());
+#endif
         }
 
         public static bool ShouldWrite(Verbosity verbosity)

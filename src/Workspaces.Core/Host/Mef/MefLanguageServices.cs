@@ -48,15 +48,18 @@ namespace Roslynator.Host.Mef
         {
             if (!_serviceMap.TryGetValue(serviceType, out service))
             {
-                service = ImmutableInterlocked.GetOrAdd(ref _serviceMap, serviceType, type =>
-                {
-                    string fullName = type.FullName;
+                service = ImmutableInterlocked.GetOrAdd(
+                    ref _serviceMap,
+                    serviceType,
+                    type =>
+                    {
+                        string fullName = type.FullName;
 
-                    return _services.SingleOrDefault(lz => lz.Metadata.ServiceType == fullName, shouldThrow: false);
-                });
+                        return _services.SingleOrDefault(lz => lz.Metadata.ServiceType == fullName, shouldThrow: false);
+                    });
             }
 
-            return service != default(Lazy<ILanguageService, LanguageServiceMetadata>);
+            return service != default;
         }
     }
 }

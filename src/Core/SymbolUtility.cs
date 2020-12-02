@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
 
 namespace Roslynator
@@ -112,7 +113,7 @@ namespace Roslynator
 
             ITypeSymbol originalDefinition = typeSymbol.OriginalDefinition;
 
-            if (!typeSymbol.Equals(originalDefinition))
+            if (!SymbolEqualityComparer.Default.Equals(typeSymbol, originalDefinition))
             {
                 hasIndexer = HasIndexer(originalDefinition.SpecialType);
 
@@ -137,7 +138,7 @@ namespace Roslynator
 
             return false;
 
-            bool? HasIndexer(SpecialType specialType)
+            static bool? HasIndexer(SpecialType specialType)
             {
                 switch (specialType)
                 {
@@ -174,7 +175,7 @@ namespace Roslynator
 
             ITypeSymbol originalDefinition = typeSymbol.OriginalDefinition;
 
-            if (!typeSymbol.Equals(originalDefinition))
+            if (!SymbolEqualityComparer.Default.Equals(typeSymbol, originalDefinition))
             {
                 propertyName = GetCountOrLengthPropertyName(originalDefinition.SpecialType);
 
@@ -203,7 +204,7 @@ namespace Roslynator
 
             return null;
 
-            string GetCountOrLengthPropertyName(SpecialType specialType)
+            static string GetCountOrLengthPropertyName(SpecialType specialType)
             {
                 switch (specialType)
                 {
@@ -231,8 +232,8 @@ namespace Roslynator
             ImmutableArray<ITypeSymbol> typeArguments = ((INamedTypeSymbol)symbol).TypeArguments;
 
             return typeArguments.Length == 2
-                && typeArguments[0].Equals(parameter1)
-                && typeArguments[1].Equals(parameter2);
+                && SymbolEqualityComparer.Default.Equals(typeArguments[0], parameter1)
+                && SymbolEqualityComparer.Default.Equals(typeArguments[1], parameter2);
         }
 
         public static bool IsPredicateFunc(ISymbol symbol, ITypeSymbol parameter)
@@ -243,7 +244,7 @@ namespace Roslynator
             ImmutableArray<ITypeSymbol> typeArguments = ((INamedTypeSymbol)symbol).TypeArguments;
 
             return typeArguments.Length == 2
-                && typeArguments[0].Equals(parameter)
+                && SymbolEqualityComparer.Default.Equals(typeArguments[0], parameter)
                 && typeArguments[1].SpecialType == SpecialType.System_Boolean;
         }
 
@@ -255,8 +256,8 @@ namespace Roslynator
             ImmutableArray<ITypeSymbol> typeArguments = ((INamedTypeSymbol)symbol).TypeArguments;
 
             return typeArguments.Length == 3
-                && typeArguments[0].Equals(parameter1)
-                && typeArguments[1].Equals(parameter2)
+                && SymbolEqualityComparer.Default.Equals(typeArguments[0], parameter1)
+                && SymbolEqualityComparer.Default.Equals(typeArguments[1], parameter2)
                 && typeArguments[2].SpecialType == SpecialType.System_Boolean;
         }
 
@@ -303,7 +304,7 @@ namespace Roslynator
             ImmutableArray<ITypeSymbol> typeArguments = ((INamedTypeSymbol)typeSymbol).TypeArguments;
 
             return typeArguments.Length == 3
-                && typeArguments[0].Equals(methodSymbol.TypeArguments[0])
+                && SymbolEqualityComparer.Default.Equals(typeArguments[0], methodSymbol.TypeArguments[0])
                 && typeArguments[1].SpecialType == SpecialType.System_Int32
                 && typeArguments[2].SpecialType == SpecialType.System_Boolean;
         }
@@ -562,6 +563,122 @@ namespace Roslynator
                 default:
                     throw new InvalidOperationException();
             }
+        }
+
+        public static IMethodSymbol FindMethodThatRaisePropertyChanged(INamedTypeSymbol typeSymbol, int position, SemanticModel semanticModel)
+        {
+            do
+            {
+                IMethodSymbol methodSymbol = FindMethod(typeSymbol.GetMembers("RaisePropertyChanged"))
+                    ?? FindMethod(typeSymbol.GetMembers("OnPropertyChanged"));
+
+                if (methodSymbol != null)
+                    return methodSymbol;
+
+                typeSymbol = typeSymbol.BaseType;
+
+            } while (typeSymbol != null
+                && typeSymbol.SpecialType != SpecialType.System_Object);
+
+            return null;
+
+            IMethodSymbol FindMethod(ImmutableArray<ISymbol> symbols)
+            {
+                foreach (ISymbol symbol in symbols)
+                {
+                    if (symbol.Kind == SymbolKind.Method)
+                    {
+                        var methodSymbol = (IMethodSymbol)symbol;
+
+                        if (methodSymbol.Parameters.SingleOrDefault(shouldThrow: false)?.Type.SpecialType == SpecialType.System_String
+                            && semanticModel.IsAccessible(position, methodSymbol))
+                        {
+                            return methodSymbol;
+                        }
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        public static bool IsAwaitable(ITypeSymbol typeSymbol, bool shouldCheckWindowsRuntimeTypes = false)
+        {
+            INamedTypeSymbol namedTypeSymbol = GetPossiblyAwaitableType(typeSymbol);
+
+            if (namedTypeSymbol == null)
+                return false;
+
+            INamedTypeSymbol originalDefinition = namedTypeSymbol.OriginalDefinition;
+            TypeKind typeKind = originalDefinition.TypeKind;
+
+            if (typeKind == TypeKind.Struct
+                && originalDefinition.ContainingNamespace.HasMetadataName(MetadataNames.System_Threading_Tasks))
+            {
+                switch (originalDefinition.MetadataName)
+                {
+                    case "ValueTask":
+                    case "ValueTask`1":
+                        return true;
+                }
+            }
+
+            if (typeKind == TypeKind.Interface
+                && originalDefinition.HasMetadataName(MetadataNames.System_Collections_Generic_IAsyncEnumerable_T))
+            {
+                return true;
+            }
+
+            if (typeKind == TypeKind.Class
+                && namedTypeSymbol.EqualsOrInheritsFrom(MetadataNames.System_Threading_Tasks_Task))
+            {
+                return true;
+            }
+
+            if (shouldCheckWindowsRuntimeTypes)
+            {
+                if (typeKind == TypeKind.Interface
+                    && originalDefinition.ContainingNamespace.HasMetadataName(MetadataNames.WinRT.Windows_Foundation))
+                {
+                    switch (originalDefinition.MetadataName)
+                    {
+                        case "IAsyncAction":
+                        case "IAsyncActionWithProgress`1":
+                        case "IAsyncOperation`1":
+                        case "IAsyncOperationWithProgress`2":
+                            return true;
+                    }
+                }
+
+                if (namedTypeSymbol.Implements(MetadataNames.WinRT.Windows_Foundation_IAsyncAction, allInterfaces: true))
+                    return true;
+            }
+
+            return false;
+        }
+
+        internal static INamedTypeSymbol GetPossiblyAwaitableType(ITypeSymbol typeSymbol)
+        {
+            if (typeSymbol.Kind == SymbolKind.TypeParameter)
+            {
+                var typeParameterSymbol = (ITypeParameterSymbol)typeSymbol;
+
+                typeSymbol = typeParameterSymbol.ConstraintTypes.SingleOrDefault(f => f.TypeKind == TypeKind.Class, shouldThrow: false);
+
+                if (typeSymbol == null)
+                    return null;
+            }
+
+            if (typeSymbol.IsTupleType)
+                return null;
+
+            if (typeSymbol.SpecialType != SpecialType.None)
+                return null;
+
+            if (!typeSymbol.TypeKind.Is(TypeKind.Class, TypeKind.Struct, TypeKind.Interface))
+                return null;
+
+            return typeSymbol as INamedTypeSymbol;
         }
     }
 }

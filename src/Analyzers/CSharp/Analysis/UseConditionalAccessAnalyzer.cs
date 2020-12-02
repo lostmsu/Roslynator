@@ -24,18 +24,20 @@ namespace Roslynator.CSharp.Analysis
 
         public override void Initialize(AnalysisContext context)
         {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-
             base.Initialize(context);
-            context.EnableConcurrentExecution();
 
-            context.RegisterSyntaxNodeAction(AnalyzeIfStatement, SyntaxKind.IfStatement);
-            context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.LogicalAndExpression);
-            context.RegisterSyntaxNodeAction(AnalyzeBinaryExpression, SyntaxKind.LogicalOrExpression);
+            context.RegisterCompilationStartAction(startContext =>
+            {
+                if (((CSharpCompilation)startContext.Compilation).LanguageVersion < LanguageVersion.CSharp6)
+                    return;
+
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeIfStatement(f), SyntaxKind.IfStatement);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeBinaryExpression(f), SyntaxKind.LogicalAndExpression);
+                startContext.RegisterSyntaxNodeAction(f => AnalyzeBinaryExpression(f), SyntaxKind.LogicalOrExpression);
+            });
         }
 
-        public static void AnalyzeIfStatement(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeIfStatement(SyntaxNodeAnalysisContext context)
         {
             var ifStatement = (IfStatementSyntax)context.Node;
 
@@ -92,7 +94,7 @@ namespace Roslynator.CSharp.Analysis
             DiagnosticHelpers.ReportDiagnostic(context, DiagnosticDescriptors.UseConditionalAccess, ifStatement);
         }
 
-        public static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeBinaryExpression(SyntaxNodeAnalysisContext context)
         {
             var binaryExpression = (BinaryExpressionSyntax)context.Node;
 
@@ -125,11 +127,12 @@ namespace Roslynator.CSharp.Analysis
                 }
             }
 
-            DiagnosticHelpers.ReportDiagnostic(context,
+            DiagnosticHelpers.ReportDiagnostic(
+                context,
                 DiagnosticDescriptors.UseConditionalAccess,
                 Location.Create(binaryExpression.SyntaxTree, TextSpan.FromBounds(left.SpanStart, right.Span.End)));
 
-            bool ExistsImplicitConversionToBoolean(INamedTypeSymbol typeSymbol)
+            static bool ExistsImplicitConversionToBoolean(INamedTypeSymbol typeSymbol)
             {
                 foreach (ISymbol member in typeSymbol.GetMembers(WellKnownMemberNames.ImplicitConversionName))
                 {
@@ -178,7 +181,7 @@ namespace Roslynator.CSharp.Analysis
             if (!ValidateRightExpression(right, binaryExpressionKind, semanticModel, cancellationToken))
                 return false;
 
-            if (CSharpUtility.ContainsOutArgumentWithLocal(right, semanticModel, cancellationToken))
+            if (CSharpUtility.ContainsOutArgumentWithLocalOrParameter(right, semanticModel, cancellationToken))
                 return false;
 
             ExpressionSyntax e = FindExpressionThatCanBeConditionallyAccessed(expression, right, isNullable: !typeSymbol.IsReferenceType, semanticModel, cancellationToken);
@@ -280,12 +283,18 @@ namespace Roslynator.CSharp.Analysis
                                 .WalkDownParentheses()
                                 .Kind() == SyntaxKind.NullLiteralExpression;
                         }
+                    case SyntaxKind.IsPatternExpression:
+                        {
+                            var isPatternExpression = (IsPatternExpressionSyntax)expression;
+
+                            return !(isPatternExpression.Pattern is ConstantPatternSyntax constantPattern)
+                                || !constantPattern.Expression.WalkDownParentheses().IsKind(SyntaxKind.NullLiteralExpression);
+                        }
                     case SyntaxKind.SimpleMemberAccessExpression:
                     case SyntaxKind.InvocationExpression:
                     case SyntaxKind.ElementAccessExpression:
                     case SyntaxKind.LogicalNotExpression:
                     case SyntaxKind.IsExpression:
-                    case SyntaxKind.IsPatternExpression:
                     case SyntaxKind.AsExpression:
                         {
                             return true;
@@ -323,7 +332,7 @@ namespace Roslynator.CSharp.Analysis
         {
             ExpressionSyntax e = binaryExpression;
 
-            ExpressionSyntax left = null;
+            ExpressionSyntax left;
             ExpressionSyntax right = null;
 
             while (true)
@@ -365,7 +374,6 @@ namespace Roslynator.CSharp.Analysis
                         }
 
                         right = left;
-                        left = null;
                     }
                 }
             }

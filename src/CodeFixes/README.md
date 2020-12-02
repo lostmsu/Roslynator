@@ -41,6 +41,7 @@
 | [CS0168](../../docs/cs/CS0168.md) | The variable 'var' is declared but never used\. |
 | [CS0173](../../docs/cs/CS0173.md) | Type of conditional expression cannot be determined because there is no implicit conversion between 'class1' and 'class2'\. |
 | [CS0177](../../docs/cs/CS0177.md) | The out parameter 'parameter' must be assigned to before control leaves the current method\. |
+| [CS0191](../../docs/cs/CS0191.md) | A readonly field cannot be assigned to \(except in a constructor or a variable initializer\)\. |
 | [CS0192](../../docs/cs/CS0192.md) | Readonly field 'name' cannot be used as ref or out value \(except in a constructor\)\. |
 | [CS0201](../../docs/cs/CS0201.md) | Only assignment, call, increment, decrement, and new object expressions can be used as a statement\. |
 | [CS0214](../../docs/cs/CS0214.md) | Pointers and fixed size buffers may only be used in an unsafe context\. |
@@ -78,6 +79,7 @@
 | [CS0525](../../docs/cs/CS0525.md) | Interfaces cannot contain fields\. |
 | [CS0527](../../docs/cs/CS0527.md) | Type 'type' in interface list is not an interface\. |
 | [CS0531](../../docs/cs/CS0531.md) | 'member': interface members cannot have a definition\. |
+| [CS0539](../../docs/cs/CS0539.md) | 'member' in explicit interface declaration is not a member of interface |
 | [CS0541](../../docs/cs/CS0541.md) | 'declaration': explicit interface declaration can only be declared in a class or struct\. |
 | [CS0549](../../docs/cs/CS0549.md) | New virtual member in sealed class\. |
 | [CS0558](../../docs/cs/CS0558.md) | User\-defined operator 'operator' must be declared static and public\. |
@@ -112,6 +114,7 @@
 | [CS1002](../../docs/cs/CS1002.md) | ; expected\. |
 | [CS1003](../../docs/cs/CS1003.md) | Syntax error, 'char' expected\. |
 | [CS1004](../../docs/cs/CS1004.md) | Duplicate 'modifier' modifier\. |
+| [CS1012](../../docs/cs/CS1012.md) | Too many characters in character literal\. |
 | [CS1023](../../docs/cs/CS1023.md) | Embedded statement cannot be a declaration or labeled statement\. |
 | [CS1031](../../docs/cs/CS1031.md) | Type expected\. |
 | [CS1057](../../docs/cs/CS1057.md) | 'member': static classes cannot contain protected members\. |
@@ -139,6 +142,7 @@
 | [CS1717](../../docs/cs/CS1717.md) | Assignment made to same variable; did you mean to assign something else? |
 | [CS1722](../../docs/cs/CS1722.md) | Base class 'class' must come before any interfaces\. |
 | [CS1737](../../docs/cs/CS1737.md) | Optional parameters must appear after all required parameters\. |
+| [CS1741](../../docs/cs/CS1741.md) | A ref or out parameter cannot have a default value\. |
 | [CS1743](../../docs/cs/CS1743.md) | Cannot specify a default value for the 'this' parameter\. |
 | [CS1750](../../docs/cs/CS1750.md) | A value of type 'type1' cannot be used as a default parameter because there are no standard conversions to type 'type2\. |
 | [CS1751](../../docs/cs/CS1751.md) | Cannot specify a default value for a parameter array\. |

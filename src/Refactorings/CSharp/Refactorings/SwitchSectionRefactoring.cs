@@ -29,10 +29,10 @@ namespace Roslynator.CSharp.Refactorings
                 SplitSwitchLabelsRefactoring.ComputeRefactoring(context, switchSection);
 
             if (context.IsAnyRefactoringEnabled(
-                    RefactoringIdentifiers.AddBracesToSwitchSection,
-                    RefactoringIdentifiers.AddBracesToSwitchSections,
-                    RefactoringIdentifiers.RemoveBracesFromSwitchSection,
-                    RefactoringIdentifiers.RemoveBracesFromSwitchSections)
+                RefactoringIdentifiers.AddBracesToSwitchSection,
+                RefactoringIdentifiers.AddBracesToSwitchSections,
+                RefactoringIdentifiers.RemoveBracesFromSwitchSection,
+                RefactoringIdentifiers.RemoveBracesFromSwitchSections)
                 && context.Span.IsEmpty
                 && IsContainedInCaseOrDefaultKeyword(context.Span))
             {
@@ -81,6 +81,9 @@ namespace Roslynator.CSharp.Refactorings
                     }
                 }
             }
+
+            if (context.IsRefactoringEnabled(RefactoringIdentifiers.DuplicateSwitchSection))
+                DuplicateSwitchSectionRefactoring.ComputeRefactoring(context, switchSection);
 
             bool IsContainedInCaseOrDefaultKeyword(TextSpan span)
             {

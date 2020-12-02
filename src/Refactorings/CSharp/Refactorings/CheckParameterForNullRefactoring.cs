@@ -79,19 +79,19 @@ namespace Roslynator.CSharp.Refactorings
             SemanticModel semanticModel)
         {
             context.RegisterRefactoring(
-            $"Check {name} for null",
-            cancellationToken => RefactorAsync(
-                context.Document,
-                parameters,
-                semanticModel,
-                cancellationToken),
-            RefactoringIdentifiers.CheckParameterForNull);
+                $"Check {name} for null",
+                cancellationToken => RefactorAsync(
+                    context.Document,
+                    parameters,
+                    semanticModel,
+                    cancellationToken),
+                RefactoringIdentifiers.CheckParameterForNull);
         }
 
         public static bool CanRefactor(
             ParameterSyntax parameter,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             BlockSyntax body = GetBody(parameter);
 
@@ -125,7 +125,7 @@ namespace Roslynator.CSharp.Refactorings
             Document document,
             ImmutableArray<ParameterSyntax> parameters,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             BlockSyntax body = GetBody(parameters[0]);
 
@@ -203,7 +203,7 @@ namespace Roslynator.CSharp.Refactorings
         private static NullCheckExpressionInfo GetNullCheckExpressionInfo(
             StatementSyntax statement,
             SemanticModel semanticModel,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (!(statement is IfStatementSyntax ifStatement))
                 return default;
@@ -256,13 +256,15 @@ namespace Roslynator.CSharp.Refactorings
                     return ((ConstructorDeclarationSyntax)parent).Body;
             }
 
-            Debug.Assert(parent.IsKind(
-                SyntaxKind.ParenthesizedLambdaExpression,
-                SyntaxKind.AnonymousMethodExpression,
-                SyntaxKind.LocalFunctionStatement,
-                SyntaxKind.DelegateDeclaration,
-                SyntaxKind.OperatorDeclaration,
-                SyntaxKind.ConversionOperatorDeclaration), parent.Kind().ToString());
+            Debug.Assert(
+                parent.IsKind(
+                    SyntaxKind.ParenthesizedLambdaExpression,
+                    SyntaxKind.AnonymousMethodExpression,
+                    SyntaxKind.LocalFunctionStatement,
+                    SyntaxKind.DelegateDeclaration,
+                    SyntaxKind.OperatorDeclaration,
+                    SyntaxKind.ConversionOperatorDeclaration),
+                parent.Kind().ToString());
 
             return null;
         }

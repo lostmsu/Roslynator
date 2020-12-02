@@ -31,7 +31,7 @@ namespace Roslynator.CSharp.Refactorings.MakeMemberAbstract
         public static Task<Document> RefactorAsync(
             Document document,
             IndexerDeclarationSyntax indexerDeclaration,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             AccessorListSyntax accessorList = AccessorList();
 
@@ -47,16 +47,16 @@ namespace Roslynator.CSharp.Refactorings.MakeMemberAbstract
                 if (getter != null)
                 {
                     accessorList = accessorList.AddAccessors(getter
-                       .WithBody(null)
-                       .WithSemicolonToken(SemicolonToken()));
+                        .WithBody(null)
+                        .WithSemicolonToken(SemicolonToken()));
                 }
 
                 AccessorDeclarationSyntax setter = indexerDeclaration.Setter();
                 if (setter != null)
                 {
                     accessorList = accessorList.AddAccessors(setter
-                       .WithBody(null)
-                       .WithSemicolonToken(SemicolonToken()));
+                        .WithBody(null)
+                        .WithSemicolonToken(SemicolonToken()));
                 }
             }
 

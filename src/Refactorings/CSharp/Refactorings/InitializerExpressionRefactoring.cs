@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Roslynator.CSharp.Refactorings
 {
@@ -23,7 +24,7 @@ namespace Roslynator.CSharp.Refactorings
             {
                 SeparatedSyntaxList<ExpressionSyntax> expressions = initializer.Expressions;
 
-                if (context.IsRefactoringEnabled(RefactoringIdentifiers.FormatInitializer)
+                if (context.IsRefactoringEnabled(RefactoringIdentifiers.WrapInitializerExpressions)
                     && expressions.Any()
                     && !initializer.IsKind(SyntaxKind.ComplexElementInitializerExpression)
                     && initializer.IsParentKind(
@@ -35,23 +36,21 @@ namespace Roslynator.CSharp.Refactorings
                     if (initializer.IsSingleLine(includeExteriorTrivia: false))
                     {
                         context.RegisterRefactoring(
-                            "Format initializer on multiple lines",
-                            cancellationToken => SyntaxFormatter.ToMultiLineAsync(
-                                context.Document,
-                                initializer,
-                                cancellationToken),
-                            RefactoringIdentifiers.FormatInitializer);
+                            "Wrap initializer expression",
+                            ct => SyntaxFormatter.ToMultiLineAsync(context.Document, initializer, ct),
+                            RefactoringIdentifiers.WrapInitializerExpressions);
                     }
                     else if (expressions.All(expression => expression.IsSingleLine())
                         && initializer.DescendantTrivia(initializer.Span).All(f => f.IsWhitespaceOrEndOfLineTrivia()))
                     {
                         context.RegisterRefactoring(
-                            "Format initializer on a single line",
-                            cancellationToken => SyntaxFormatter.ToSingleLineAsync(
+                            "Unwrap initializer expressions",
+                            ct => SyntaxFormatter.ToSingleLineAsync(
                                 context.Document,
-                                initializer,
-                                cancellationToken),
-                            RefactoringIdentifiers.FormatInitializer);
+                                initializer.Parent,
+                                TextSpan.FromBounds(initializer.OpenBraceToken.GetPreviousToken().Span.End, initializer.CloseBraceToken.Span.End),
+                                ct),
+                            RefactoringIdentifiers.WrapInitializerExpressions);
                     }
                 }
 
