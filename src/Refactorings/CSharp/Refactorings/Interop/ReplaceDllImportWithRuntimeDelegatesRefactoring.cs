@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -14,8 +15,6 @@ namespace Roslynator.CSharp.Refactorings.Interop {
     internal static class ReplaceDllImportWithRuntimeDelegatesRefactoring
     {
         private static readonly string _dllImportFullName = typeof(DllImportAttribute).FullName;
-        private static readonly NameSyntax _functionPointerFullName = ParseName($"global::{typeof(UnmanagedFunctionPointerAttribute).FullName}");
-        private static readonly NameSyntax _defaultCallingConvention = ParseName($"global::{typeof(CallingConvention).FullName}.{nameof(CallingConvention.Winapi)}");
         private const string SuppressSecurityFullName = "System.Security.SuppressUnmanagedCodeSecurityAttribute";
         private static readonly NameSyntax _marshal = ParseName($"global::{typeof(Marshal).FullName}");
         private static readonly NameSyntax _intPtr = ParseName($"global::{typeof(IntPtr).FullName}");
@@ -66,7 +65,7 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             private SyntaxNode _root;
             private SemanticModel _semanticModel;
             private TypeDeclarationSyntax _newParent;
-            private TypeDeclarationSyntax _existingDelegateContainer;
+            private TypeDeclarationSyntax? _existingDelegateContainer;
             private TypeDeclarationSyntax _newDelegateContainer;
             private ConstructorDeclarationSyntax _initialContainerConstructor;
             private ConstructorDeclarationSyntax _newContainerConstructor;
@@ -106,8 +105,7 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                 this._newContainerConstructor = this._newContainerConstructor
                     .AddBodyStatements(delegateProperty.Value.Initializer);
                 this._newDelegateContainer = this._newDelegateContainer.WithMembers(this._newDelegateContainer.Members
-                    .Add(delegateProperty.Value.Property)
-                    .Add(delegateProperty.Value.DelegateType));
+                    .Add(delegateProperty.Value.Property));
 
                 this._replacements[method] = delegateProperty.Value.Method;
 
@@ -145,14 +143,14 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             MethodDeclarationSyntax method,
             CancellationToken cancellationToken = default)
         {
-            var refacotring = new Refactoring();
-            if (!await refacotring.Prepare(method, document, cancellationToken).ConfigureAwait(false))
+            var refactoring = new Refactoring();
+            if (!await refactoring.Prepare(method, document, cancellationToken).ConfigureAwait(false))
                 return document.Solution();
 
-            if (!await refacotring.AddMethod(method).ConfigureAwait(false))
+            if (!await refactoring.AddMethod(method).ConfigureAwait(false))
                 return document.Solution();
 
-            return refacotring.Complete();
+            return refactoring.Complete();
         }
 
         public static async Task<Solution> RefactorAllAsync(
@@ -192,10 +190,10 @@ namespace Roslynator.CSharp.Refactorings.Interop {
 
             var dllImportNode = (AttributeSyntax)await dllImport.ApplicationSyntaxReference.GetSyntaxAsync(cancellationToken).ConfigureAwait(false);
             INamedTypeSymbol suppressSecuritySymbol = semanticModel.GetTypeByMetadataName(SuppressSecurityFullName);
-            AttributeData suppressSecurity = (suppressSecuritySymbol != null)
+            AttributeData? suppressSecurity = (suppressSecuritySymbol != null)
                 ? methodSymbol.GetAttribute(suppressSecuritySymbol)
                 : null;
-            AttributeSyntax suppressSecurityNode = (suppressSecurity != null)
+            AttributeSyntax? suppressSecurityNode = (suppressSecurity != null)
                 ? (AttributeSyntax)await suppressSecurity.ApplicationSyntaxReference.GetSyntaxAsync(cancellationToken).ConfigureAwait(false)
                 : null;
 
@@ -204,10 +202,11 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                 .Where(a => !ReferenceEquals(a, dllImportNode) && !ReferenceEquals(a, suppressSecurityNode),
                        out SyntaxTriviaList leftoverTrivia);
 
+            var delegateType = MakeDelegateType(method, dllImportNode.ArgumentList!, suppressSecurityNode);
             return new DelegateProperty()
             {
-                DelegateType = MakeDelegateType(method, dllImportNode, suppressSecurityNode),
-                Initializer = MakeInitializer(method, dllImportNode),
+                DelegateType = delegateType,
+                Initializer = MakeInitializer(method, delegateType, dllImportNode),
                 Method = method
                     .WithAttributeLists(attributeLists)
                     .WithExpressionBody(ArrowExpressionClause(
@@ -219,7 +218,7 @@ namespace Roslynator.CSharp.Refactorings.Interop {
                 Property = PropertyDeclaration(
                     attributeLists: default,
                     modifiers: Modifiers.Internal_Static(),
-                    type: DelegateType(method.Identifier),
+                    type: delegateType,
                     explicitInterfaceSpecifier: default,
                     identifier: method.Identifier,
                     accessorList: AccessorList(AutoGetAccessorDeclaration())
@@ -229,10 +228,10 @@ namespace Roslynator.CSharp.Refactorings.Interop {
 
         private static StatementSyntax MakeInitializer(
             MethodDeclarationSyntax method,
+            TypeSyntax delegateType,
             AttributeSyntax dllImportNode)
         {
             ExpressionSyntax dllName = dllImportNode.ArgumentList.Arguments.Single(a => a.NameEquals == null).Expression;
-            TypeSyntax delegateType = DelegateType(method.Identifier);
             InvocationExpressionSyntax libraryHandle = InvocationExpression(_getUnmanagedDll, ArgumentList(Argument(dllName)));
             ExpressionSyntax functionName = dllImportNode.ArgumentList.Arguments
                 .SingleOrDefault(a => a.NameEquals?.Name.Identifier.Text == nameof(DllImportAttribute.EntryPoint))
@@ -240,51 +239,44 @@ namespace Roslynator.CSharp.Refactorings.Interop {
             ExpressionSyntax functionPointer = InvocationExpression(_getFunctionByName, ArgumentList(
                     Argument(functionName),
                     Argument(libraryHandle)));
-            InvocationExpressionSyntax delegateForFunctionPointer = SimpleMemberInvocationExpression(
-                _marshal,
-                GenericName(nameof(Marshal.GetDelegateForFunctionPointer), delegateType),
-                Argument(functionPointer));
+            var delegateForFunctionPointer = CastExpression(delegateType, functionPointer);
 
             return SimpleAssignmentStatement(
                 DelegatePropertyName(method.Identifier),
                 delegateForFunctionPointer);
         }
 
-        private static DelegateDeclarationSyntax MakeDelegateType(
+        private static TypeSyntax MakeDelegateType(
             MethodDeclarationSyntax method,
-            AttributeSyntax dllImportNode,
-            AttributeSyntax suppressSecurityNode)
+            AttributeArgumentListSyntax argumentList,
+            AttributeSyntax? suppressSecurityNode)
         {
-            ExpressionSyntax callingConvention = dllImportNode.ArgumentList.Arguments
+            ExpressionSyntax? callingConventionExpression = argumentList.Arguments
                 .FirstOrDefault(arg => arg.NameEquals?.Name.Identifier.Text == nameof(DllImportAttribute.CallingConvention))
-                ?.Expression ?? _defaultCallingConvention;
-            var unmanagedPointerAttribute = Attribute(_functionPointerFullName, AttributeArgument(callingConvention));
+                ?.Expression;
 
-            foreach (var argument in dllImportNode.ArgumentList.Arguments) {
-                string name = argument.NameEquals?.Name.Identifier.ValueText;
-                switch (name) {
-                case nameof(DllImportAttribute.CallingConvention):
-                case null:
-                    break;
-                default:
-                    unmanagedPointerAttribute = unmanagedPointerAttribute.AddArgumentListArguments(argument);
-                    break;
-                }
-            }
+            var callingConventionName = callingConventionExpression switch {
+                IdentifierNameSyntax name => name,
+                MemberAccessExpressionSyntax qualifiedName when qualifiedName.Name is IdentifierNameSyntax name => name,
+                null => null,
+                _ => throw new NotSupportedException(),
+            };
 
-            SyntaxList<AttributeListSyntax> attributes = SingletonList(AttributeList(unmanagedPointerAttribute));
+            var callingConventionList = callingConventionName is null
+                ? default
+                : FunctionPointerUnmanagedCallingConventionList(
+                    SingletonSeparatedList(
+                        FunctionPointerUnmanagedCallingConvention(callingConventionName
+                            .Identifier)));
+
+            SyntaxList <AttributeListSyntax> attributes = default;
             if (suppressSecurityNode != null)
                 attributes = attributes.Add(AttributeList(suppressSecurityNode));
 
-            return DelegateDeclaration(
-                attributes,
-                Modifiers.Public(),
-                method.ReturnType,
-                DelegateTypeName(method.Identifier).Identifier,
-                typeParameterList: default,
-                parameterList: method.ParameterList,
-                constraintClauses: default
-            );
+            var pointerParameterTypes = method.ParameterList.Parameters.Select(p => FunctionPointerParameter(p.AttributeLists, p.Modifiers, p.Type));
+            pointerParameterTypes = pointerParameterTypes.Append(FunctionPointerParameter(method.ReturnType));
+            var callingConvention = FunctionPointerCallingConvention(Token(SyntaxKind.UnmanagedKeyword), callingConventionList);
+            return FunctionPointerType(callingConvention, FunctionPointerParameterList(SeparatedList(pointerParameterTypes)));
         }
 
         private static TypeSyntax QualifiedDelegatePropertyName(in SyntaxToken methodIdentifier)
@@ -301,7 +293,7 @@ namespace Roslynator.CSharp.Refactorings.Interop {
         {
             public MethodDeclarationSyntax Method { get; set; }
             public PropertyDeclarationSyntax Property { get; set; }
-            public DelegateDeclarationSyntax DelegateType { get; set; }
+            public TypeSyntax DelegateType { get; set; }
             public StatementSyntax Initializer { get; set; }
         }
     }
