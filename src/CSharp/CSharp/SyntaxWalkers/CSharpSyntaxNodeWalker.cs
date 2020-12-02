@@ -4953,6 +4953,9 @@ namespace Roslynator.CSharp.SyntaxWalkers
                 case SyntaxKind.TupleType:
                     VisitTupleType((TupleTypeSyntax)node);
                     break;
+                case SyntaxKind.FunctionPointerType:
+                    VisitFunctionPointerType((FunctionPointerTypeSyntax)node);
+                    break;
                 default:
                     Debug.Fail($"Unrecognized kind '{node.Kind()}'.");
                     base.Visit(node);

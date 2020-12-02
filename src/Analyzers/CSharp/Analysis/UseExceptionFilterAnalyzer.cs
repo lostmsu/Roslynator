@@ -103,6 +103,10 @@ namespace Roslynator.CSharp.Analysis
                             AnalyzeSimpleName(memberBindingExpression.Name);
                             break;
                         }
+                    case MemberAccessExpressionSyntax memberAccess:
+                        {
+                            break;
+                        }
                     default:
                         {
                             Debug.Fail(node.Kind().ToString());
